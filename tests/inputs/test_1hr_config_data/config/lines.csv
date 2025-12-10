@@ -1,0 +1,10 @@
+id,name,length,capex,transformer_capex,fom,vom,lifetime,discount_rate,node_start,node_end,loss_factor,initial_capacity,max_build,min_build,unit_type,scenarios,near_optimum,range_group
+0,QLD-NSW,1500,0,0,0,0,60,0.05,QLD,NSW,0.03,1000,0,0,hvdc,gas,FALSE,
+1,NSW-VIC,1000,0,0,0,0,60,0.05,NSW,VIC,0.03,1000,0,0,hvdc,gas,FALSE,
+2,VIC-SA,800,0,0,0,0,60,0.05,VIC,SA,0.03,1000,0,0,hvdc,gas,FALSE,
+3,VIC-TAS,400,0,0,0,0,60,0.05,VIC,TAS,0.03,1000,0,0,hvdc,gas,FALSE,
+4,pv_connection,0,0,0,0,0,1,1,,,0,0,0,0,0,gas,,
+5,wind_connection,0,0,0,0,0,1,1,,,0,0,0,0,0,gas,,
+6,other_connections,0,0,0,0,0,1,1,,,0,0,0,0,0,gas,,
+7,phes_connection,0,0,0,0,0,1,1,,,0,0,0,0,0,gas,,
+8,bess_connection,0,0,0,0,0,1,1,,,0,0,0,0,0,gas,,

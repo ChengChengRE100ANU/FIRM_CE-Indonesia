@@ -1,0 +1,6 @@
+id,scenarios,filename,datafile_type
+1,gas,electricity.csv,demand
+2,gas,solar.csv,generation
+3,gas,wind.csv,generation
+4,gas,flexible_annual_limit.csv,flexible_annual_limit
+5,gas,baseload.csv,generation

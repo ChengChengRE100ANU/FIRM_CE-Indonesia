@@ -1,0 +1,10 @@
+id,name,length,capex,transformer_capex,fom,vom,lifetime,discount_rate,node_start,node_end,loss_factor,initial_capacity,max_build,min_build,unit_type,scenarios,near_optimum,range_group
+0,APB1-APB2,140,224,224000,2.24,0,50,0.03,APB1,APB2,0.03,0,2000,0,hvdc,default,TRUE,HVDC
+1,APB2-APB3,370,224,224000,2.24,0,50,0.03,APB2,APB3,0.03,0,2000,0,hvdc,default,TRUE,HVDC
+2,APB3-APB4,310,224,224000,2.24,0,50,0.03,APB3,APB4,0.03,0,2000,0,hvdc,default,TRUE,HVDC
+3,APB4-APB5,370,224,224000,2.24,0,50,0.03,APB4,APB5,0.03,0,2000,0,hvdc,default,TRUE,HVDC
+4,pv_connection,10,1050,0,10.5,0,50,0.03,,,0.07,0,0,0,0,default,,
+5,wind_connection,10,1050,0,10.5,0,50,0.03,,,0.07,0,0,0,0,default,,
+6,other_connections,10,1050,0,10.5,0,50,0.03,,,0.07,0,0,0,0,default,,
+7,phes_connection,10,1050,0,10.5,0,50,0.03,,,0.07,0,0,0,0,default,,
+8,bess_connection,10,1050,0,10.5,0,50,0.03,,,0.07,0,0,0,0,default,,

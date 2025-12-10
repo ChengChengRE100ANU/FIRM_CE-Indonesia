@@ -1,0 +1,7 @@
+id,scenarios,filename,datafile_type
+1,default,electricity.csv,demand
+2,default,solar.csv,generation
+3,default,wind.csv,generation
+4,default,flexible_annual_limit.csv,flexible_annual_limit
+5,default,baseload.csv,generation
+6,default,flexible_monthly_limit.csv,flexible_monthly_limit

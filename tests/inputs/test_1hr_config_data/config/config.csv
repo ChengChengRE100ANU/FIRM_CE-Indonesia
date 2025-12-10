@@ -1,0 +1,11 @@
+id,name,value
+0,mutation,0.5
+1,iterations,1
+2,population,1
+3,recombination,0.3
+4,type,single_time
+5,model_name,Validation
+6,near_optimal_tol,0.1
+7,midpoint_count,1
+8,balancing_type,full
+9,fixed_costs_threshold,400

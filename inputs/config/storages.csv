@@ -1,0 +1,11 @@
+id,name,initial_power_capacity,initial_energy_capacity,duration,capex_p,capex_e,fom,vom,lifetime,discount_rate,node,charge_efficiency,discharge_efficiency,max_build_p,max_build_e,min_build_p,min_build_e,line,unit_type,scenarios,near_optimum,range_group
+0,phes_apb1,0,0,0,357,32,8,0.3,60,0.03,APB1,0.8,1,2000,10000,0,0,phes_connection,phes,default,TRUE,PHES
+1,phes_apb2,0,0,0,357,32,8,0.3,60,0.03,APB2,0.8,1,2000,10000,0,0,phes_connection,phes,default,TRUE,PHES
+2,phes_apb3,0,0,0,357,32,8,0.3,60,0.03,APB3,0.8,1,2000,10000,0,0,phes_connection,phes,default,TRUE,PHES
+3,phes_apb4,0,0,0,357,32,8,0.3,60,0.03,APB4,0.8,1,2000,10000,0,0,phes_connection,phes,default,TRUE,PHES
+4,phes_apb5,0,0,0,357,32,8,0.3,60,0.03,APB5,0.8,1,2000,10000,0,0,phes_connection,phes,default,TRUE,PHES
+5,bess_apb1,0,0,4,1388,0,16,0,15,0.03,APB1,0.9,1,2000,10000,0,0,bess_connection,bess,default,TRUE,Battery
+6,bess_apb2,0,0,4,1388,0,16,0,15,0.03,APB2,0.9,1,2000,10000,0,0,bess_connection,bess,default,TRUE,Battery
+7,bess_apb3,0,0,4,1388,0,16,0,15,0.03,APB3,0.9,1,2000,10000,0,0,bess_connection,bess,default,TRUE,Battery
+8,bess_apb4,0,0,4,1388,0,16,0,15,0.03,APB4,0.9,1,2000,10000,0,0,bess_connection,bess,default,TRUE,Battery
+9,bess_apb5,0,0,4,1388,0,16,0,15,0.03,APB5,0.9,1,2000,10000,0,0,bess_connection,bess,default,TRUE,Battery

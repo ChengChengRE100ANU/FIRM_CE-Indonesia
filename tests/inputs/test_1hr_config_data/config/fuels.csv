@@ -1,0 +1,7 @@
+id,name,emissions,cost,scenarios
+0,solar,0,0,gas
+1,wind,0,0,gas
+2,water,0,0,gas
+3,gas,1,13.5,gas
+4,brown coal,1,0.7,gas
+5,black coal,1,4.6,gas

@@ -1,0 +1,8 @@
+id,name,emissions,cost,scenarios
+0,solar,0,0,default
+1,wind,0,0,default
+2,water,0,0,default
+3,gas,1,13.5,default
+4,brown coal,1,0.7,default
+5,black coal,1,4.6,default
+6,geothermal,0,0,default

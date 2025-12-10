@@ -1,0 +1,12 @@
+id,name,value
+0,mutation,0.5
+1,iterations,1000
+2,population,10
+3,recombination,0.3
+4,type,diversify
+5,model_name,Validation
+6,near_optimal_tol,0.1
+7,balancing_type,full
+8,fixed_costs_threshold,400
+9,novelty_k,5
+10,novelty_threshold,0.03

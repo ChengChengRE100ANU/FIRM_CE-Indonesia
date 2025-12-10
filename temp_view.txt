@@ -1,0 +1,120 @@
+import csv
+import os
+from typing import Dict, List, Tuple
+
+import numpy as np
+from numpy.typing import NDArray
+
+from firm_ce.common.constants import PENALTY_MULTIPLIER
+from firm_ce.common.typing import (
+    BandCandidates_Type,
+    BroadOptimumVars_Type,
+    EvaluationRecord_Type,
+)
+from firm_ce.optimisation.single_time import Solution, parallel_wrapper
+from firm_ce.system.components import Fleet_InstanceType
+from firm_ce.system.topology import Network_InstanceType
+
+
+def near_optimum_path(root: str, scenario_name: str):
+    base = os.path.join("results", root, scenario_name)
+    os.makedirs(base, exist_ok=True)
+    return base
+
+
+def create_broad_optimum_vars_record(
+    candidate_x_idx: int,
+    asset_name: str,
+    near_optimum_check: bool,
+    near_optimum_group: str,
+    var_kind: str,
+    duration: float,
+    initial_power: float,
+    linked_power_idx: int,
+) -> BroadOptimumVars_Type:
+    return (
+        candidate_x_idx,
+        asset_name,
+        near_optimum_check,
+        near_optimum_group,
+        var_kind,
+        duration,
+        initial_power,
+        linked_power_idx,
+    )
+
+
+def build_broad_optimum_var_info(
+    fleet: Fleet_InstanceType, network: Network_InstanceType
+) -> List[BroadOptimumVars_Type]:
+    """create a list of records mapping each decision variable index to:
+    - its name
+    - near_optimum on or off
+    - its group key (to aggregate)"""
+
+    broad_optimum_var_info = []
+
+    for generator in fleet.generators.values():
+        broad_optimum_var_info.append(
+            create_broad_optimum_vars_record(
+                generator.candidate_x_idx, generator.name, generator.near_optimum_check, generator.group
+            )
+        )
+
+    for storage in fleet.storages.values():
+        power_name = f"{storage.name}_power"
+        power_group = f"{storage.group}_power" if storage.group else power_name
+        broad_optimum_var_info.append(
+            create_broad_optimum_vars_record(
+                storage.candidate_p_x_idx, power_name, storage.near_optimum_check, power_group
+            )
+        )
+
+    for storage in fleet.storages.values():
+        energy_name = f"{storage.name}_energy"
+        energy_group = f"{storage.group}_energy" if storage.group else energy_name
+        broad_optimum_var_info.append(
+            create_broad_optimum_vars_record(
+                storage.candidate_e_x_idx, energy_name, storage.near_optimum_check, energy_group
+            )
+        )
+
+    for line in network.major_lines.values():
+        broad_optimum_var_info.append(
+            create_broad_optimum_vars_record(line.candidate_x_idx, line.name, line.near_optimum_check, line.group)
+        )
+    return broad_optimum_var_info
+
+
+def create_evaluation_record(
+    group_key: str,
+    band_type: str,
+    population_lcoes: List[float],
+    de_population_penalties: List[float],
+    band_population_penalties: List[float],
+    band_population_candidates: List[List[float]],
+    solution_index: int,
+    target_group_var_sum: float | None = None,
+) -> EvaluationRecord_Type:
+    return (
+        group_key,
+        band_type,
+        target_group_var_sum if target_group_var_sum else "N/A",
+        float(population_lcoes[solution_index]),
+        float(de_population_penalties[solution_index]),
+        float(band_population_penalties[solution_index]),
+        band_population_candidates[:, solution_index].copy(),
+    )
+
+
+def broad_optimum_objective(
+    band_population_candidates: List[List[float]],  # 2-D array to allow vectorized DE
+    differential_evolution_args,
+    group_key: str,
+    band_lcoe_max: float,
+    bo_group_orders: List[int],
+    evaluation_records: List[EvaluationRecord_Type],
+    band_type: str,
+    target_group_var_sum: float | None = None,
+    midpoint_number: int | None = None,
+) -> float:

@@ -1,0 +1,11 @@
+id,name,initial_power_capacity,initial_energy_capacity,duration,capex_p,capex_e,fom,vom,lifetime,discount_rate,node,charge_efficiency,discharge_efficiency,max_build_p,max_build_e,min_build_p,min_build_e,line,unit_type,scenarios,near_optimum,range_group
+0,phes_qld,0,0,48,3382,0,0,0,40,0.05,QLD,0.8,1,50,0,0,0,phes_connection,phes,gas,TRUE,PHES
+1,phes_nsw,0,0,48,3382,0,0,0,40,0.05,NSW,0.8,1,50,0,0,0,phes_connection,phes,gas,TRUE,PHES
+2,phes_sa,0,0,48,3382,0,0,0,40,0.05,SA,0.8,1,50,0,0,0,phes_connection,phes,gas,TRUE,PHES
+3,phes_vic,0,0,48,3382,0,0,0,40,0.05,VIC,0.8,1,50,0,0,0,phes_connection,phes,gas,TRUE,PHES
+4,phes_tas,0,0,48,3382,0,0,0,40,0.05,TAS,0.8,1,50,0,0,0,phes_connection,phes,gas,TRUE,PHES
+5,bess_qld,0,0,4,1692,0,0,0,20,0.05,QLD,0.9,1,50,0,0,0,bess_connection,bess,gas,FALSE,
+6,bess_nsw,0,0,4,1692,0,0,0,20,0.05,NSW,0.9,1,50,0,0,0,bess_connection,bess,gas,TRUE,
+7,bess_sa,0,0,4,1692,0,0,0,20,0.05,SA,0.9,1,50,0,0,0,bess_connection,bess,gas,FALSE,
+8,bess_vic,0,0,4,1692,0,0,0,20,0.05,VIC,0.9,1,50,0,0,0,bess_connection,bess,gas,FALSE,
+9,bess_tas,0,0,4,1692,0,0,0,20,0.05,TAS,0.9,1,50,0,0,0,bess_connection,bess,gas,FALSE,

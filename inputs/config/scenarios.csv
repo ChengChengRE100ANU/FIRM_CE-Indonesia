@@ -1,0 +1,2 @@
+id,scenario_name,resolution,allowance,firstyear,finalyear,nodes,lines,networksteps_max,type,initial_pop_filename
+0,default,1,0.00002,2025,2025,"APB1,APB2,APB3,APB4,APB5","APB1-APB2,APB2-APB3,APB3-APB4,APB4-APB5",4,diversify,
