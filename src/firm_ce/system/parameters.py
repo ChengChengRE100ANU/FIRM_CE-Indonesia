@@ -156,3 +156,4 @@ class ModelConfig:
         self.fixed_costs_threshold = float(config_dict.get("fixed_costs_threshold", 500.0))
         self.novelty_k = int(config_dict.get("novelty_k", 5))
         self.novelty_threshold = float(config_dict.get("novelty_threshold", 0.03))
+        self.expansion_interval_years = int(config_dict.get("expansion_interval_years", 0))

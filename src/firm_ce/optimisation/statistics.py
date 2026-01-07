@@ -524,7 +524,7 @@ class Statistics:
 
         for line in self.solution.network.minor_lines.values():
             header[:, col] = np.array([line.name, "Minor Line", str(line.id), "LCOE", "[$/MWh]"], dtype=object)
-            data_array[0, col] = (ltcosts_m.get_total(line.lt_costs) / total_energy, 2)
+            data_array[0, col] = round(ltcosts_m.get_total(line.lt_costs) / total_energy, 2)
             data_array[0, 1] += ltcosts_m.get_total(line.lt_costs)
             data_array[0, 5] += ltcosts_m.get_total(line.lt_costs)
             col += 1

@@ -1,8 +1,22 @@
-id,name,emissions,cost,scenarios
-0,solar,0,0,default
-1,wind,0,0,default
-2,water,0,0,default
-3,gas,1,13.5,default
-4,brown coal,1,0.7,default
-5,black coal,1,4.6,default
-6,geothermal,0,0,default
+id,Year,name,emissions,cost,scenarios
+0,2025,solar,0,0,default
+1,2025,wind,0,0,default
+2,2025,water,0,0,default
+3,2025,gas,1,13.5,default
+4,2025,brown coal,1,0.7,default
+5,2025,black coal,1,4.6,default
+6,2025,geothermal,0,0,default
+7,2026,solar,0,0,default
+8,2026,wind,0,0,default
+9,2026,water,0,0,default
+10,2026,gas,1,13.5,default
+11,2026,brown coal,1,0.7,default
+12,2026,black coal,1,4.6,default
+13,2026,geothermal,0,0,default
+14,2027,solar,0,0,default
+15,2027,wind,0,0,default
+16,2027,water,0,0,default
+17,2027,gas,1,13.5,default
+18,2027,brown coal,1,0.7,default
+19,2027,black coal,1,4.6,default
+20,2027,geothermal,0,0,default

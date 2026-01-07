@@ -10,3 +10,4 @@ id,name,value
 9,fixed_costs_threshold,400
 10,novelty_k,5
 11,novelty_threshold,0.03
+

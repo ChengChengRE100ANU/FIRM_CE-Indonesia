@@ -8,8 +8,9 @@ from firm_ce.io.file_manager import import_config_csvs
 
 
 class ModelData:
-    def __init__(self, config_directory: str, logging_flag: bool) -> None:
+    def __init__(self, config_directory: str, logging_flag: bool, data_directory: str | None = None) -> None:
         self.config_directory = config_directory
+        self.data_directory = data_directory
 
         # Get the config settings for the csvs
         self.config_data = import_config_csvs(config_directory=config_directory)
@@ -31,7 +32,22 @@ class ModelData:
         self.datafiles = self.config_data.get("datafiles")
 
     def validate(self):
-        return validate_config(self)
+        config_flag = validate_config(self)
+        data_flag = True
+
+        if self.data_directory:
+            if not os.path.isdir(self.data_directory):
+                self.logger.error("Data directory %s does not exist.", self.data_directory)
+                data_flag = False
+            else:
+                for scenario in self.scenarios.values():
+                    scenario_name = scenario.get("scenario_name")
+                    if not validate_data(self.datafiles, scenario_name, self.logger, self.data_directory):
+                        data_flag = False
+        else:
+            self.logger.warning("Data directory not set; skipping datafile validation.")
+
+        return config_flag and data_flag
 
     def get_model_name(self) -> str:
         model_name = None
@@ -78,6 +94,18 @@ def is_nan(val):
     return isinstance(val, float) and np.isnan(val)
 
 
+def parse_year(item):
+    if "Year" not in item:
+        return None
+    year_val = item.get("Year")
+    if is_nan(year_val):
+        return None
+    try:
+        return int(float(year_val))
+    except (TypeError, ValueError):
+        return None
+
+
 def validate_model_config(config_dict, model_logger):
     flag = True
     validators = {
@@ -100,6 +128,7 @@ def validate_model_config(config_dict, model_logger):
         "fixed_costs_threshold": lambda v: validate_range(v, 0),
         "novelty_k": validate_positive_int,
         "novelty_threshold": lambda v: validate_range(v, 0, 1),
+        "expansion_interval_years": lambda v: validate_range(v, 0),
     }
 
     for item in config_dict.values():
@@ -190,7 +219,11 @@ def validate_fuels(fuels_dict, scenarios_list, model_logger):
 def validate_lines(lines_dict, scenarios_list, scenario_nodes, model_logger):
     flag = True
     scenario_lines = {s: [] for s in scenarios_list}
+    scenario_lines_seen = {s: set() for s in scenarios_list}
+    scenario_line_year_keys = {s: set() for s in scenarios_list}
     scenario_minor_lines = {s: [] for s in scenarios_list}
+    scenario_minor_seen = {s: set() for s in scenarios_list}
+    scenario_minor_year_keys = {s: set() for s in scenarios_list}
 
     for idx, item in lines_dict.items():
         numeric_fields = {
@@ -203,11 +236,14 @@ def validate_lines(lines_dict, scenarios_list, scenario_nodes, model_logger):
             "discount_rate": float,
             "loss_factor": float,
             "initial_capacity": float,
+            "initial_capacity_lifetime": int,
             "max_build": float,
             "min_build": float,
         }
 
         for field, cast in numeric_fields.items():
+            if field not in item:
+                continue
             try:
                 val = cast(item[field])
                 if "discount_rate" == field:
@@ -229,7 +265,17 @@ def validate_lines(lines_dict, scenarios_list, scenario_nodes, model_logger):
 
         for scenario in parse_list(item.get("scenarios")):
             if scenario in scenarios_list:
-                scenario_lines[scenario].append(item["name"])
+                item_year = parse_year(item)
+                dup_key = (item["name"], item_year)
+                if dup_key in scenario_line_year_keys[scenario]:
+                    model_logger.error("Duplicate line name '%s' for year %s in scenario %s", item["name"], item_year, scenario)
+                    flag = False
+                else:
+                    scenario_line_year_keys[scenario].add(dup_key)
+
+                if item["name"] not in scenario_lines_seen[scenario]:
+                    scenario_lines[scenario].append(item["name"])
+                    scenario_lines_seen[scenario].add(item["name"])
 
                 for endpoint in ["node_start", "node_end"]:
                     node_val = item.get(endpoint)
@@ -244,7 +290,17 @@ def validate_lines(lines_dict, scenarios_list, scenario_nodes, model_logger):
                         flag = False
 
                 if any(is_nan(item.get(n)) for n in ["node_start", "node_end"]):
-                    scenario_minor_lines[scenario].append(item["name"])
+                    if dup_key in scenario_minor_year_keys[scenario]:
+                        model_logger.error(
+                            "Duplicate minor line name '%s' for year %s in scenario %s", item["name"], item_year, scenario
+                        )
+                        flag = False
+                    else:
+                        scenario_minor_year_keys[scenario].add(dup_key)
+
+                    if item["name"] not in scenario_minor_seen[scenario]:
+                        scenario_minor_lines[scenario].append(item["name"])
+                        scenario_minor_seen[scenario].add(item["name"])
             else:
                 model_logger.warning("'scenario' %s for line.id %s not defined in scenarios.csv", scenario, idx)
 
@@ -255,6 +311,8 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
     flag = True
     scenario_generators = {s: [] for s in scenarios_list}
     scenario_baseload = {s: [] for s in scenarios_list}
+    scenario_generator_year_keys = {s: set() for s in scenarios_list}
+    scenario_generator_seen = {s: set() for s in scenarios_list}
 
     for idx, item in generators_dict.items():
         for field in [
@@ -264,9 +322,12 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
             "heat_rate_base",
             "heat_rate_incr",
             "initial_capacity",
+            "initial_capacity_lifetime",
             "max_build",
             "min_build",
         ]:
+            if field not in item:
+                continue
             if not validate_range(item[field], 0):
                 model_logger.error("'%s' must be float greater than or equal to 0", field)
                 flag = False
@@ -285,11 +346,19 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
 
         for scenario in parse_list(item.get("scenarios")):
             if scenario in scenarios_list:
-                if item["name"] in scenario_generators[scenario]:
-                    model_logger.error("Duplicate generator name '%s' in scenario %s", item["name"], scenario)
+                item_year = parse_year(item)
+                dup_key = (item["name"], item_year)
+                if dup_key in scenario_generator_year_keys[scenario]:
+                    model_logger.error(
+                        "Duplicate generator name '%s' for year %s in scenario %s", item["name"], item_year, scenario
+                    )
                     flag = False
                 else:
+                    scenario_generator_year_keys[scenario].add(dup_key)
+
+                if item["name"] not in scenario_generator_seen[scenario]:
                     scenario_generators[scenario].append(item["name"])
+                    scenario_generator_seen[scenario].add(item["name"])
 
                 if item["unit_type"] == "baseload":
                     scenario_baseload[scenario].append(item["name"])
@@ -320,6 +389,8 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
 def validate_storages(storages_dict, scenarios_list, scenario_nodes, scenario_lines, model_logger):
     flag = True
     scenario_storages = {s: [] for s in scenarios_list}
+    scenario_storage_year_keys = {s: set() for s in scenarios_list}
+    scenario_storage_seen = {s: set() for s in scenarios_list}
 
     for idx, item in storages_dict.items():
         for field in [
@@ -329,11 +400,14 @@ def validate_storages(storages_dict, scenarios_list, scenario_nodes, scenario_li
             "vom",
             "initial_power_capacity",
             "initial_energy_capacity",
+            "initial_capacity_lifetime",
             "max_build_p",
             "min_build_p",
             "max_build_e",
             "min_build_e",
         ]:
+            if field not in item:
+                continue
             if not validate_range(item[field], 0):
                 model_logger.error("'%s' must be float >= 0", field)
                 flag = False
@@ -360,11 +434,19 @@ def validate_storages(storages_dict, scenarios_list, scenario_nodes, scenario_li
 
         for scenario in parse_list(item.get("scenarios")):
             if scenario in scenarios_list:
-                if item["name"] in scenario_storages[scenario]:
-                    model_logger.error("Duplicate storage name '%s' in scenario %s", item["name"], scenario)
+                item_year = parse_year(item)
+                dup_key = (item["name"], item_year)
+                if dup_key in scenario_storage_year_keys[scenario]:
+                    model_logger.error(
+                        "Duplicate storage name '%s' for year %s in scenario %s", item["name"], item_year, scenario
+                    )
                     flag = False
                 else:
+                    scenario_storage_year_keys[scenario].add(dup_key)
+
+                if item["name"] not in scenario_storage_seen[scenario]:
                     scenario_storages[scenario].append(item["name"])
+                    scenario_storage_seen[scenario].add(item["name"])
 
                 if item["node"] not in scenario_nodes[scenario]:
                     model_logger.error(

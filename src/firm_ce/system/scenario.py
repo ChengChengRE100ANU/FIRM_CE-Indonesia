@@ -183,11 +183,28 @@ class Scenario:
         -------
         Dict[str, str]: Filtered data from a config file assigned to this Scenario instance, keyed by model-level ID.
         """
-        return {
-            idx: imported_dict[idx]
-            for idx in imported_dict
-            if self.name in parse_comma_separated(imported_dict[idx]["scenarios"])
-        }
+        scenario_year = None
+        try:
+            scenario_year = int(self.scenario_data.get("firstyear"))
+        except (TypeError, ValueError):
+            scenario_year = None
+
+        filtered = {}
+        for idx, item in imported_dict.items():
+            if self.name not in parse_comma_separated(item.get("scenarios", "")):
+                continue
+
+            if scenario_year is not None and "Year" in item:
+                try:
+                    item_year = int(float(item.get("Year")))
+                except (TypeError, ValueError):
+                    item_year = None
+                if item_year is not None and item_year != scenario_year:
+                    continue
+
+            filtered[idx] = item
+
+        return filtered
 
     def get_datafiles(self, all_datafiles: Dict[str, Dict[str, str]], data_directory: str) -> Dict[str, DataFile]:
         """

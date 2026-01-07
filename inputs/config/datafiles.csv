@@ -5,3 +5,9 @@ id,scenarios,filename,datafile_type
 4,default,flexible_annual_limit.csv,flexible_annual_limit
 5,default,baseload.csv,generation
 6,default,flexible_monthly_limit.csv,flexible_monthly_limit
+7,CE_test_3Y,electricity_3y.csv,demand
+8,CE_test_3Y,solar_3y.csv,generation
+9,CE_test_3Y,wind_3y.csv,generation
+10,CE_test_3Y,flexible_annual_limit_3y.csv,flexible_annual_limit
+11,CE_test_3Y,baseload_3y.csv,generation
+12,CE_test_3Y,flexible_monthly_limit_3y.csv,flexible_monthly_limit

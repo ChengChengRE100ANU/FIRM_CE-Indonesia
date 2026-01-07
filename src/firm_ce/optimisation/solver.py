@@ -158,6 +158,15 @@ class Solver:
                 return None
         return None
 
+    def require_optimal_x(self) -> NDArray[np.float64]:
+        optimal_x = self.load_optimal_x()
+        if optimal_x is None or optimal_x.size == 0:
+            raise ValueError(
+                f"Missing optimal_x for scenario '{self.scenario_name}'. Run single_time first to create "
+                f"{self._optimal_x_path()}."
+            )
+        return optimal_x
+
     def single_time(self) -> None:
         self.initialise_callback()
         self.result = self.run_differential_evolution(evaluate_vectorised_xs, self.get_differential_evolution_args())
@@ -171,27 +180,15 @@ class Solver:
             sol.evaluate()
             return sol
 
-        x_candidate = self.decision_x0 if self.decision_x0 is not None else self.load_optimal_x()
-        solution = _evaluate(x_candidate)
+        optimal_x = self.require_optimal_x()
+        solution = _evaluate(optimal_x)
 
         if solution.penalties > 1e-6 or solution.lcoe <= 0:
             self.logger.warning(
-                f"Initial guess used for band cap has penalties={solution.penalties} and lcoe={solution.lcoe}."
-                f" Attempting to derive band cap from the optimiser result instead."
+                f"Optimal_x used for band cap has penalties={solution.penalties} and lcoe={solution.lcoe}."
+                f" Using lcoe+penalties for band cap."
             )
-            if self.result is not None and getattr(self.result, "x", None) is not None:
-                alt_solution = _evaluate(self.result.x)
-                if alt_solution.penalties <= 1e-6 and alt_solution.lcoe > 0:
-                    solution = alt_solution
-                else:
-                    self.logger.warning(
-                        f"Optimiser best solution also penalised (penalties={alt_solution.penalties}, "
-                        f"lcoe={alt_solution.lcoe}). Using lcoe+penalties for band cap."
-                    )
-                    solution.lcoe = alt_solution.lcoe + alt_solution.penalties
-            else:
-                # Fall back to using lcoe + penalties to avoid zero band
-                solution.lcoe = solution.lcoe + solution.penalties
+            solution.lcoe = solution.lcoe + solution.penalties
 
         self.optimal_lcoe = solution.lcoe
         band_lcoe_max = max(self.optimal_lcoe, 1e-6) * (1 + self.config.near_optimal_tol)
@@ -199,10 +196,7 @@ class Solver:
         return band_lcoe_max
 
     def find_near_optimal_band(self) -> Dict[str, Tuple[float]]:
-        if self.decision_x0 is None:
-            loaded = self.load_optimal_x()
-            if loaded is not None:
-                self.decision_x0 = loaded
+        self.decision_x0 = None
         band_lcoe_max = self.get_band_lcoe_max()
         evaluation_records = []
         bands = {}
@@ -249,9 +243,8 @@ class Solver:
         return bands
 
     def diversify(self) -> None:
-        optimal_x = self.decision_x0 if self.decision_x0 is not None else getattr(self.result, "x", None)
-        if optimal_x is None:
-            raise ValueError("Diversify requires an optimal solution from a prior single_time run.")
+        self.decision_x0 = None
+        optimal_x = self.require_optimal_x()
 
         if self.optimal_lcoe is None:
             self.optimal_lcoe = Solution(optimal_x, *self.get_differential_evolution_args()).evaluate().lcoe
@@ -297,12 +290,6 @@ class Solver:
             self.find_near_optimal_band()
         elif self.config.type == "diversify":
             self.single_time()
-            if self.result is not None and getattr(self.result, "x", None) is not None:
-                self.decision_x0 = self.result.x
-            if self.decision_x0 is None:
-                loaded = self.load_optimal_x()
-                if loaded is not None:
-                    self.decision_x0 = loaded
             self.find_near_optimal_band()
             self.diversify()
         elif self.config.type == "capacity_expansion":
