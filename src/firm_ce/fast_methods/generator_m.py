@@ -139,7 +139,7 @@ def load_data(
     annual_constraints (float64[:]): Array containing the annual generation constraints for a flexible Generator.
         Each element provides the maximum annual generation (GWh) for a given year for the Generator.
     monthly_constraints (float64[:]): Array containing the monthly generation constraints for a flexible Generator.
-        Each element provides the maximum monthly generation (GWh) for a given month for the Generator.
+        Each element provides a monthly capacity factor (fraction of capacity) for a given month.
     interval_resolutions (float64[:]): A 1-dimensional array containing the resolution for every time interval
         in the unit committment formulation (hours per time interval). An array is used instead of a single
         scalar value to allow for variable time step simplified balancing methods to be developed in future.
@@ -375,17 +375,14 @@ def initialise_monthly_limits(generator_instance: Generator_InstanceType, static
             break
         month_start = static_instance.month_first_t[month_idx]
         if month_start < static_instance.intervals_count:
-            generator_instance.remaining_energy_month[month_start] = generator_instance.monthly_constraints_data[
-                month_idx
-            ]
+            generator_instance.remaining_energy_month[month_start] = get_month_limit(
+                generator_instance, month_idx, static_instance
+            )
     return None
 
 
 @njit(fastmath=FASTMATH)
-def get_annual_limit(
-    generator_instance: Generator_InstanceType,
-    year: int64,
-) -> float64[:]:
+def get_annual_limit(generator_instance: Generator_InstanceType, year: int64) -> float64[:]:
     """
     Get the annual constraints data array for a flexible Generator.
 
@@ -404,23 +401,54 @@ def get_annual_limit(
 
 
 @njit(fastmath=FASTMATH)
-def get_month_limit(generator_instance: Generator_InstanceType, month: int64) -> float64:
+def get_month_hours(static_instance, month: int64) -> float64:
     """
-    Get the monthly constraints data value for a flexible Generator for the specified month.
+    Get the total number of hours in the specified month based on the scenario's interval resolutions.
+
+    Parameters:
+    -------
+    static_instance (ScenarioParameters_InstanceType): Static parameters providing month boundaries.
+    month (int64): Current month index across the modelling horizon (0-based).
+
+    Returns:
+    -------
+    float64: Total hours in the requested month.
+    """
+    if month < static_instance.month_count - 1:
+        last_t = static_instance.month_first_t[month + 1]
+    else:
+        last_t = static_instance.intervals_count
+    first_t = static_instance.month_first_t[month]
+    hours = 0.0
+    for interval in range(first_t, last_t):
+        hours += static_instance.interval_resolutions[interval]
+    return hours
+
+
+@njit(fastmath=FASTMATH)
+def get_month_limit(generator_instance: Generator_InstanceType, month: int64, static_instance) -> float64:
+    """
+    Get the monthly generation limit (GWh) for a flexible Generator for the specified month.
+    The monthly constraints data are capacity factors and are converted using capacity and month hours.
 
     Parameters:
     -------
     generator_instance (Generator_InstanceType): An instance of the Generator jitclass.
     month (int64): Current month index across the modelling horizon (0-based).
+    static_instance (ScenarioParameters_InstanceType): Static parameters providing month boundaries.
 
     Returns:
     -------
-    float64: Monthly limit for the requested month. Returns 0.0 if no monthly constraints are defined.
+    float64: Monthly energy limit (GWh). Returns 0.0 if no monthly constraints are defined.
     """
     if len(generator_instance.monthly_constraints_data) == 0:
         return 0.0
     if month < len(generator_instance.monthly_constraints_data):
-        return generator_instance.monthly_constraints_data[month]
+        return (
+            generator_instance.monthly_constraints_data[month]
+            * generator_instance.capacity
+            * get_month_hours(static_instance, month)
+        )
     return 0.0
 
 
@@ -492,7 +520,7 @@ def set_flexible_max_t(
             month_idx = static_instance.interval_month[interval]
             month_start = static_instance.month_first_t[month_idx]
             if interval == month_start:
-                month_remaining = get_month_limit(generator_instance, month_idx) / resolution
+                month_remaining = get_month_limit(generator_instance, month_idx, static_instance) / resolution
             else:
                 month_remaining = generator_instance.remaining_energy_month[interval - 1] / resolution
             energy_limit = min(energy_limit, month_remaining)
@@ -605,7 +633,7 @@ def update_remaining_energy(
             month_idx = static_instance.interval_month[interval]
             month_start = static_instance.month_first_t[month_idx]
             if interval == month_start:
-                prev_remaining = get_month_limit(generator_instance, month_idx)
+                prev_remaining = get_month_limit(generator_instance, month_idx, static_instance)
             else:
                 prev_remaining = generator_instance.remaining_energy_month[interval - 1]
             generator_instance.remaining_energy_month[interval] = prev_remaining - generator_instance.dispatch_power[
@@ -628,7 +656,8 @@ def update_remaining_energy(
             if previous_month_flag:
                 month_idx = static_instance.interval_month[interval]
                 generator_instance.remaining_energy_month_temp_reverse = (
-                    get_month_limit(generator_instance, month_idx) - generator_instance.dispatch_power[interval] * resolution
+                    get_month_limit(generator_instance, month_idx, static_instance)
+                    - generator_instance.dispatch_power[interval] * resolution
                 )
             else:
                 generator_instance.remaining_energy_month_temp_reverse -= (

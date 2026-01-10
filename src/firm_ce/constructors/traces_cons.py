@@ -21,7 +21,7 @@ def select_datafile(
     Parameters:
     -------
     datafile_type (str): The type of datafile. Either 'generation', 'flexible_annual_limit',
-        or 'demand'.
+        'flexible_monthly_limit', or 'demand'.
     object_name (str): The name attribute of the Generator or Node instance.
     datafiles_imported_dict (Dict[str, DataFile]): A dictionary of DataFile instances, where
         the key is a str of the id in `config/datafiles.csv`.
@@ -54,7 +54,7 @@ def load_datafiles_to_generators(
     instance. The baseload, solar, and wind generators are expected to have 'generation'
     traces defining their capacity factor in each time interval, and the flexible generators
     are expected to have a 'flexible_annual_limit' trace defining their maximum generation
-    in each year.
+    in each year and a 'flexible_monthly_limit' trace defining monthly capacity factors.
 
     Parameters:
     -------

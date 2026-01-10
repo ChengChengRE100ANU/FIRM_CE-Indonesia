@@ -119,8 +119,9 @@ class Generator:
     Electricity generation asset.
 
     Solar, wind and baseload generators require generation trace data files. Flexible
-    generators require data files for annual generation limits. Datafiles must be stored in
-    the `inputs/data` folder and referenced in `inputs/config/datafiles.csv`.
+    generators require data files for annual generation limits and monthly capacity factors.
+    Datafiles must be stored in the `inputs/data` folder and referenced in
+    `inputs/config/datafiles.csv`.
 
     Notes:
     -----
@@ -155,7 +156,7 @@ class Generator:
     data (float64[:]): Interval capacity factor trace data. Each value represents the capacity factor of the solar, wind
         or baseload Generator in each time interval of the modelling horizon.
     annual_constraints_data (float64[:]): Annual generation constraints for flexible Generators, units GWh/year.
-    monthly_constraints_data (float64[:]): Monthly generation constraints for flexible Generators, units GWh/month.
+    monthly_constraints_data (float64[:]): Monthly capacity factors for flexible Generators, unitless fraction of capacity.
     candidate_x_idx (int64): Index of the Generator's decision variable (new build capacity) in the candidate solution vector.
     new_build (float64): Capacity built for the candidate solution, units GW.
     capacity (float64): Current installed capacity, units GW.

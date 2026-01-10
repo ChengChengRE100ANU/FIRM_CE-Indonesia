@@ -1,6 +1,6 @@
 id,name,value
 0,mutation,0.5
-1,iterations,100
+1,iterations,500
 2,population,10
 3,recombination,0.3
 4,type,capacity_expansion
