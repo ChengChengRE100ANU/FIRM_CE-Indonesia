@@ -13,9 +13,9 @@ def determine_interval_parameters(
     resolution: float,
 ) -> Tuple[int, NDArray, NDArray, NDArray, int, int]:
     """
-    Calculate parameters associated with time intervals, accounting for leap years. The first_year
-    and last_year in `config/scenarios.csv` determines whether or not an interval is considered
-    a leap year
+    Calculate parameters associated with time intervals, ignoring leap days. The first_year
+    and last_year in `config/scenarios.csv` determine the span, but each year is treated
+    as 365 days for interval counts.
 
     Parameters:
     -------
@@ -46,6 +46,8 @@ def determine_interval_parameters(
 
         for month in range(1, 13):
             days_in_month = calendar.monthrange(year, month)[1]
+            if month == 2 and calendar.isleap(year):
+                days_in_month = 28
             intervals_in_month = int(days_in_month * 24 // resolution)
             month_first_t[month_idx] = intervals_so_far
             interval_month.extend([month_idx] * intervals_in_month)
@@ -53,7 +55,7 @@ def determine_interval_parameters(
             intervals_so_far += intervals_in_month
             month_idx += 1
 
-        leap_days += calendar.leapdays(year, year + 1)
+        # Leap days are ignored by design.
 
     intervals_count = intervals_so_far
     return leap_days, year_first_t, month_first_t, np.array(interval_month, dtype=np.int64), month_idx, intervals_count
