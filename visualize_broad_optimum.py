@@ -228,7 +228,7 @@ def plot_band_ranges(bands_df: pd.DataFrame):
     ax.set_yticks(y)
     ax.set_yticklabels(pivot["Group"])
     ax.set_xlabel("Total capacity (grouped)")
-    ax.set_title("Near-optimal band extremes (min–max) per group")
+    ax.set_title("Near-optimal band extremes (min to max) per group")
     ax.grid(True, axis="x", alpha=0.25)
     ax.legend(loc="best")
     fig.tight_layout()

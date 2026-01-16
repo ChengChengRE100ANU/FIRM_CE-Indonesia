@@ -6,6 +6,10 @@ inputs/*
 !inputs/config
 !inputs/data
 project
+capacity expansion results/
+capacity expansion results no new coal/
+plots_out/
+plots_out_no_new_coal/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
