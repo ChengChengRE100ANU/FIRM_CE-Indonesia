@@ -74,6 +74,17 @@ def construct_Generator_object(
             return default
         return float(value)
 
+    def get_optional_int(source: Dict[str, str], key: str, default: int = 0) -> int:
+        value = source.get(key, default)
+        if value is None:
+            return default
+        if isinstance(value, float) and np.isnan(value):
+            return default
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return default
+
     idx = int(generator_dict["id"])
     name = str(generator_dict["name"])
     unit_size = float(generator_dict["unit_size"])
@@ -112,6 +123,8 @@ def construct_Generator_object(
     min_load_pct = get_optional_float(generator_dict, "min_load_pct", 0.0)
     ramp_rate_pct = get_optional_float(generator_dict, "ramp_rate_pct", 0.0)
     start_cost_per_mw = get_optional_float(generator_dict, "start_cost_per_mw", 0.0)
+    retrofit_group = get_optional_int(generator_dict, "retrofit_group", 0)
+    retrofit_cap = get_optional_float(generator_dict, "retrofit_cap", 0.0)
 
     return Generator(
         True,
@@ -132,6 +145,8 @@ def construct_Generator_object(
         min_load_pct,
         ramp_rate_pct,
         start_cost_per_mw,
+        retrofit_group,
+        retrofit_cap,
     )
 
 

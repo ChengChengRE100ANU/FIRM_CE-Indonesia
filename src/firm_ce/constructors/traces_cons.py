@@ -53,8 +53,8 @@ def load_datafiles_to_generators(
     Iterates through all generators in the fleet and loads their time-series data to each
     instance. The baseload, solar, and wind generators are expected to have 'generation'
     traces defining their capacity factor in each time interval, and the flexible generators
-    are expected to have a 'flexible_annual_limit' trace defining their maximum generation
-    in each year and a 'flexible_monthly_limit' trace defining monthly capacity factors.
+    are expected to have a 'flexible_annual_limit' trace defining annual capacity factor
+    limits and a 'flexible_monthly_limit' trace defining monthly capacity factors.
 
     Parameters:
     -------

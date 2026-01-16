@@ -87,6 +87,8 @@ if JIT_ENABLED:
         ("min_load_pct", float64),
         ("ramp_rate_pct", float64),
         ("start_cost_per_mw", float64),
+        ("retrofit_group", int64),
+        ("retrofit_cap", float64),
         ("data_status", unicode_type),
         ("data", float64[:]),
         ("annual_constraints_data", float64[:]),
@@ -158,6 +160,8 @@ class Generator:
     min_load_pct (float64): Fraction of capacity assumed to run as always-on baseload for flexible generators.
     ramp_rate_pct (float64): Maximum ramp-up rate as a fraction of capacity per hour.
     start_cost_per_mw (float64): Start cost applied per MW increase in dispatch between intervals.
+    retrofit_group (int64): Shared retrofit capacity group identifier (0 when not used).
+    retrofit_cap (float64): Shared retrofit capacity cap (GW) for the group (0 when not used).
     data_status (unicode_type): Status of data loading (e.g., 'unloaded').
     data (float64[:]): Interval capacity factor trace data. Each value represents the capacity factor of the solar, wind
         or baseload Generator in each time interval of the modelling horizon.
@@ -205,6 +209,8 @@ class Generator:
         min_load_pct: float64,
         ramp_rate_pct: float64,
         start_cost_per_mw: float64,
+        retrofit_group: int64,
+        retrofit_cap: float64,
     ) -> None:
         """
         Initialise a Generator instance.
@@ -231,6 +237,8 @@ class Generator:
         min_load_pct (float64): Fraction of capacity assumed to run as always-on baseload for flexible generators.
         ramp_rate_pct (float64): Maximum ramp-up rate as a fraction of capacity per hour.
         start_cost_per_mw (float64): Start cost applied per MW increase in dispatch between intervals.
+        retrofit_group (int64): Shared retrofit capacity group identifier (0 when not used).
+        retrofit_cap (float64): Shared retrofit capacity cap (GW) for the group (0 when not used).
         """
         self.static_instance = static_instance
         self.id = idx
@@ -250,6 +258,8 @@ class Generator:
         self.min_load_pct = min_load_pct
         self.ramp_rate_pct = ramp_rate_pct
         self.start_cost_per_mw = start_cost_per_mw
+        self.retrofit_group = retrofit_group
+        self.retrofit_cap = retrofit_cap
 
         self.data_status = "unloaded"
         self.data = np.empty((0,), dtype=np.float64)

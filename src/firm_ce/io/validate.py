@@ -326,6 +326,7 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
             "max_build",
             "min_build",
             "start_cost_per_mw",
+            "retrofit_cap",
         ]:
             if field not in item or is_nan(item[field]):
                 continue
@@ -345,6 +346,14 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
         if "ramp_rate_pct" in item and not is_nan(item["ramp_rate_pct"]):
             if not validate_range(item["ramp_rate_pct"], 0, 1):
                 model_logger.error("'ramp_rate_pct' must be float in range [0,1]")
+                flag = False
+
+        if "retrofit_group" in item and not is_nan(item["retrofit_group"]):
+            try:
+                if int(float(item["retrofit_group"])) < 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                model_logger.error("'retrofit_group' must be a non-negative integer")
                 flag = False
 
         if not validate_enum(item["unit_type"], ["solar", "wind", "flexible", "baseload"]):

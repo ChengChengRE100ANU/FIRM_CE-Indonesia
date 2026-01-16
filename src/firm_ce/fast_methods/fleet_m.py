@@ -1,3 +1,5 @@
+import numpy as np
+
 from firm_ce.common.constants import FASTMATH, TOLERANCE
 from firm_ce.common.exceptions import raise_static_modification_error
 from firm_ce.common.jit_overload import njit
@@ -109,6 +111,44 @@ def build_capacities(
 
 
 @njit(fastmath=FASTMATH)
+def calculate_retrofit_overbuild(fleet_instance: Fleet_InstanceType) -> float64:
+    """
+    Calculate total retrofit capacity exceeding shared caps across retrofit groups.
+
+    The sum uses total retrofit capacity (including prior builds) so cumulative
+    capacity expansion paths respect shared retirement caps.
+    """
+    max_group = 0
+    for generator in fleet_instance.generators.values():
+        if generator.retrofit_group > max_group:
+            max_group = generator.retrofit_group
+
+    if max_group <= 0:
+        return 0.0
+
+    group_capacity = np.zeros(max_group + 1, dtype=np.float64)
+    group_caps = np.zeros(max_group + 1, dtype=np.float64)
+
+    for generator in fleet_instance.generators.values():
+        group = generator.retrofit_group
+        if group <= 0:
+            continue
+        group_capacity[group] += generator.capacity
+        if generator.retrofit_cap > group_caps[group]:
+            group_caps[group] = generator.retrofit_cap
+
+    overbuild = 0.0
+    for group in range(1, max_group + 1):
+        cap = group_caps[group]
+        if cap <= 0.0:
+            continue
+        if group_capacity[group] > cap:
+            overbuild += group_capacity[group] - cap
+
+    return overbuild
+
+
+@njit(fastmath=FASTMATH)
 def allocate_memory(fleet_instance: Fleet_InstanceType, intervals_count: int64) -> None:
     """
     Memory associated with time-series data for flexible generators and storage systems is only
@@ -203,7 +243,7 @@ def initialise_annual_limits(fleet_instance: Fleet_InstanceType, static_instance
     if fleet_instance.static_instance:
         raise_static_modification_error()
     for generator in fleet_instance.generators.values():
-        generator_m.initialise_annual_limit(generator, year, first_t)
+        generator_m.initialise_annual_limit(generator, static_instance, year, first_t)
         generator_m.initialise_monthly_limits(generator, static_instance, year)
     return None
 
@@ -491,7 +531,8 @@ def assign_precharging_values(
                 generator.remaining_energy[interval - 1] - generator.dispatch_power[interval] * resolution
             )
             generator.remaining_energy_temp_forward = min(
-                max(generator.remaining_energy_temp_forward, 0.0), generator_m.get_annual_limit(generator, year)
+                max(generator.remaining_energy_temp_forward, 0.0),
+                generator_m.get_annual_limit(generator, year, static_instance),
             )
             generator_m.update_deficit_block_bounds(generator, generator.remaining_energy_temp_forward)
             generator_m.assign_trickling_reserves(generator)

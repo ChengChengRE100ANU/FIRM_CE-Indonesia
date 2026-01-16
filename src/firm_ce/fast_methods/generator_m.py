@@ -7,7 +7,7 @@ from firm_ce.common.exceptions import (
 )
 from firm_ce.common.jit_overload import njit
 from firm_ce.common.typing import DictType, boolean, float64, int64, unicode_type
-from firm_ce.fast_methods import ltcosts_m, node_m
+from firm_ce.fast_methods import ltcosts_m, node_m, static_m
 from firm_ce.system.components import Generator, Generator_InstanceType
 from firm_ce.system.topology import Line_InstanceType, Node_InstanceType
 
@@ -69,6 +69,8 @@ def create_dynamic_copy(
         generator_instance.min_load_pct,
         generator_instance.ramp_rate_pct,
         generator_instance.start_cost_per_mw,
+        generator_instance.retrofit_group,
+        generator_instance.retrofit_cap,
     )
     generator_copy.data_status = generator_instance.data_status
     generator_copy.data = generator_instance.data  # This remains static
@@ -140,7 +142,7 @@ def load_data(
     generation_trace (float64[:]): Array containing the time-series capacity factor trace for the Generator. Each element
         provides the capacity factor for a time interval.
     annual_constraints (float64[:]): Array containing the annual generation constraints for a flexible Generator.
-        Each element provides the maximum annual generation (GWh) for a given year for the Generator.
+        Each element provides an annual capacity factor limit (fraction of capacity) for a given year.
     monthly_constraints (float64[:]): Array containing the monthly generation constraints for a flexible Generator.
         Each element provides a monthly capacity factor (fraction of capacity) for a given month.
     interval_resolutions (float64[:]): A 1-dimensional array containing the resolution for every time interval
@@ -329,6 +331,8 @@ def update_lt_generation(
 @njit(fastmath=FASTMATH)
 def initialise_annual_limit(
     generator_instance: Generator_InstanceType,
+    static_instance,
+    static_instance,
     year: int64,
     first_t: int64,
 ) -> None:
@@ -338,6 +342,7 @@ def initialise_annual_limit(
     Parameters:
     -------
     generator_instance (Generator_InstanceType): An instance of the Generator jitclass.
+    static_instance (ScenarioParameters_InstanceType): Static parameters providing year boundaries.
     year (int64): Current number of years that have completed balancing in the unit committment. Used
         to index the annual_constraints_data.
     first_t (int64): Index for the first time interval of the calendar year.
@@ -358,7 +363,7 @@ def initialise_annual_limit(
     if generator_instance.static_instance:
         raise_static_modification_error()
     if len(get_data(generator_instance, "annual_constraints_data")) > 0:
-        generator_instance.remaining_energy[first_t - 1] = get_data(generator_instance, "annual_constraints_data")[year]
+        generator_instance.remaining_energy[first_t - 1] = get_annual_limit(generator_instance, year, static_instance)
     return None
 
 
@@ -392,9 +397,11 @@ def initialise_monthly_limits(generator_instance: Generator_InstanceType, static
 
 
 @njit(fastmath=FASTMATH)
-def get_annual_limit(generator_instance: Generator_InstanceType, year: int64) -> float64[:]:
+def get_annual_limit(generator_instance: Generator_InstanceType, year: int64, static_instance) -> float64:
     """
-    Get the annual constraints data array for a flexible Generator.
+    Get the annual generation limit (GWh) for a flexible Generator for the specified year.
+    Annual constraints data are interpreted as total capacity factor fractions, with the
+    implicit min-load baseline subtracted so remaining energy constrains flexible dispatch.
 
     Parameters:
     -------
@@ -404,10 +411,17 @@ def get_annual_limit(generator_instance: Generator_InstanceType, year: int64) ->
 
     Returns:
     -------
-    float64[:]: A 1-dimensional array containing the annual generation constraints for each year for
-        the flexible Generator
+    float64: Annual energy limit (GWh).
     """
-    return get_data(generator_instance, "annual_constraints_data")[year]
+    if len(get_data(generator_instance, "annual_constraints_data")) == 0:
+        return 0.0
+    fraction = get_data(generator_instance, "annual_constraints_data")[year]
+    effective_fraction = max(fraction - generator_instance.min_load_pct, 0.0)
+    first_t, last_t = static_m.get_year_t_boundaries(static_instance, year)
+    hours = 0.0
+    for interval in range(first_t, last_t):
+        hours += static_instance.interval_resolutions[interval]
+    return generator_instance.capacity * hours * effective_fraction
 
 
 @njit(fastmath=FASTMATH)

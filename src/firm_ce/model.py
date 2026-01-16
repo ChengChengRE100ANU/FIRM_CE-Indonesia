@@ -174,6 +174,29 @@ class Model:
         datafiles_df_base = pd.read_csv(os.path.join(base_config_dir, "datafiles.csv"))
         initial_guess_df_base = pd.read_csv(os.path.join(base_config_dir, "initial_guess.csv"))
 
+        retrofit_group_map: Dict[str, int] = {}
+        retrofit_caps_by_year: Dict[int, Dict[int, float]] = {}
+        if "retrofit_group" in generators_df_base.columns and "retrofit_cap" in generators_df_base.columns:
+            for _, row in generators_df_base.iterrows():
+                group_val = row.get("retrofit_group")
+                cap_val = row.get("retrofit_cap")
+                year_val = row.get("Year")
+                name_val = str(row.get("name", ""))
+                if pd.isna(group_val) or pd.isna(cap_val) or pd.isna(year_val):
+                    continue
+                try:
+                    group = int(float(group_val))
+                    year = int(float(year_val))
+                    cap = float(cap_val)
+                except (TypeError, ValueError):
+                    continue
+                if group <= 0:
+                    continue
+                if name_val and name_val not in retrofit_group_map:
+                    retrofit_group_map[name_val] = group
+                retrofit_caps_by_year.setdefault(year, {})
+                retrofit_caps_by_year[year][group] = max(retrofit_caps_by_year[year].get(group, 0.0), cap)
+
         for _, scenario_row in scenarios_df.iterrows():
             scenario_name = str(scenario_row.get("scenario_name"))
             if not scenario_name:
@@ -262,6 +285,30 @@ class Model:
                 self._apply_generator_state(generators_df, scenario_name, generator_state)
                 self._apply_storage_state(storages_df, scenario_name, storage_state)
                 self._apply_line_state(lines_df, scenario_name, line_state)
+
+                if retrofit_group_map and "retrofit_group" in generators_df.columns:
+                    group_used: Dict[int, float] = {}
+                    for name, state in generator_state.items():
+                        group = retrofit_group_map.get(name)
+                        if group is None:
+                            continue
+                        group_used[group] = group_used.get(group, 0.0) + Model._sum_vintages(
+                            state.get("vintages", [])
+                        )
+                    year_caps = retrofit_caps_by_year.get(start_year, {})
+                    for idx, row in generators_df.iterrows():
+                        group_val = row.get("retrofit_group")
+                        if pd.isna(group_val):
+                            continue
+                        try:
+                            group = int(float(group_val))
+                        except (TypeError, ValueError):
+                            continue
+                        if group <= 0:
+                            continue
+                        cap = year_caps.get(group, 0.0)
+                        remaining = max(cap - group_used.get(group, 0.0), 0.0)
+                        generators_df.loc[idx, "max_build"] = remaining
 
                 fuels_df.to_csv(os.path.join(work_config_dir, "fuels.csv"), index=False)
                 datafiles_df_base.to_csv(os.path.join(work_config_dir, "datafiles.csv"), index=False)

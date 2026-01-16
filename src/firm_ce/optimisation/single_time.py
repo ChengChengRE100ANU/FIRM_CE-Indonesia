@@ -131,6 +131,10 @@ class Solution:
         fleet_m.build_capacities(self.fleet, x, self.static.interval_resolutions)
         network_m.build_capacity(self.network, x)
 
+        retrofit_overbuild = fleet_m.calculate_retrofit_overbuild(self.fleet)
+        if retrofit_overbuild > 0.0:
+            self.penalties += retrofit_overbuild * PENALTY_MULTIPLIER
+
         fleet_m.allocate_memory(self.fleet, self.static.intervals_count)
         network_m.allocate_memory(self.network, self.static.intervals_count)
 
@@ -325,7 +329,7 @@ class Solution:
         """
         total_costs = self.calculate_fixed_costs()
         if not self.check_fixed_costs(total_costs):
-            return self.lcoe, total_costs * PENALTY_MULTIPLIER  # End early if fixed cost constraint breached
+            return self.lcoe, total_costs * PENALTY_MULTIPLIER + self.penalties  # End early if fixed cost constraint breached
 
         reliability_check = self.balance_residual_load()
         if not reliability_check:
