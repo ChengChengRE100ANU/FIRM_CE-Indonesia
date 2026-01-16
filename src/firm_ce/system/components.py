@@ -84,6 +84,9 @@ if JIT_ENABLED:
         ("near_optimum_check", boolean),
         ("group", unicode_type),
         ("cost", UnitCost_InstanceType),
+        ("min_load_pct", float64),
+        ("ramp_rate_pct", float64),
+        ("start_cost_per_mw", float64),
         ("data_status", unicode_type),
         ("data", float64[:]),
         ("annual_constraints_data", float64[:]),
@@ -152,6 +155,9 @@ class Generator:
     group (unicode_type): Group label used by broad optimum optimisation. Grouped assets are considered in aggregate
         when minimising/maximising installed capacity within the broad optimum space.
     cost (UnitCost_InstanceType): Exogenously defined cost assumptions.
+    min_load_pct (float64): Fraction of capacity assumed to run as always-on baseload for flexible generators.
+    ramp_rate_pct (float64): Maximum ramp-up rate as a fraction of capacity per hour.
+    start_cost_per_mw (float64): Start cost applied per MW increase in dispatch between intervals.
     data_status (unicode_type): Status of data loading (e.g., 'unloaded').
     data (float64[:]): Interval capacity factor trace data. Each value represents the capacity factor of the solar, wind
         or baseload Generator in each time interval of the modelling horizon.
@@ -196,6 +202,9 @@ class Generator:
         line: Line_InstanceType,
         group: unicode_type,
         cost: UnitCost_InstanceType,
+        min_load_pct: float64,
+        ramp_rate_pct: float64,
+        start_cost_per_mw: float64,
     ) -> None:
         """
         Initialise a Generator instance.
@@ -219,6 +228,9 @@ class Generator:
         group (unicode_type): Group label used by broad optimum optimisation. Grouped assets are considered in aggregate
             when minimising/maximising installed capacity within the broad optimum space.
         cost (UnitCost_InstanceType): Exogenously defined cost assumptions.
+        min_load_pct (float64): Fraction of capacity assumed to run as always-on baseload for flexible generators.
+        ramp_rate_pct (float64): Maximum ramp-up rate as a fraction of capacity per hour.
+        start_cost_per_mw (float64): Start cost applied per MW increase in dispatch between intervals.
         """
         self.static_instance = static_instance
         self.id = idx
@@ -235,6 +247,9 @@ class Generator:
         self.line = line
         self.group = group
         self.cost = cost
+        self.min_load_pct = min_load_pct
+        self.ramp_rate_pct = ramp_rate_pct
+        self.start_cost_per_mw = start_cost_per_mw
 
         self.data_status = "unloaded"
         self.data = np.empty((0,), dtype=np.float64)

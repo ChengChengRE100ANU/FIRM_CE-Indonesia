@@ -66,6 +66,14 @@ def construct_Generator_object(
     -------
     Generator_InstanceType: A static instance of the Generator jitclass.
     """
+    def get_optional_float(source: Dict[str, str], key: str, default: float = 0.0) -> float:
+        value = source.get(key, default)
+        if value is None:
+            return default
+        if isinstance(value, float) and np.isnan(value):
+            return default
+        return float(value)
+
     idx = int(generator_dict["id"])
     name = str(generator_dict["name"])
     unit_size = float(generator_dict["unit_size"])
@@ -101,6 +109,10 @@ def construct_Generator_object(
         fuel=fuel,
     )
 
+    min_load_pct = get_optional_float(generator_dict, "min_load_pct", 0.0)
+    ramp_rate_pct = get_optional_float(generator_dict, "ramp_rate_pct", 0.0)
+    start_cost_per_mw = get_optional_float(generator_dict, "start_cost_per_mw", 0.0)
+
     return Generator(
         True,
         idx,
@@ -117,6 +129,9 @@ def construct_Generator_object(
         line,
         group,
         cost,
+        min_load_pct,
+        ramp_rate_pct,
+        start_cost_per_mw,
     )
 
 

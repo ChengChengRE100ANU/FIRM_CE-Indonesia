@@ -66,6 +66,9 @@ def create_dynamic_copy(
         line_copy,
         generator_instance.group,
         generator_instance.cost,  # This remains static
+        generator_instance.min_load_pct,
+        generator_instance.ramp_rate_pct,
+        generator_instance.start_cost_per_mw,
     )
     generator_copy.data_status = generator_instance.data_status
     generator_copy.data = generator_instance.data  # This remains static
@@ -281,6 +284,13 @@ def update_residual_load(
         new_trace = get_data(generator_instance, "trace") * added_capacity
         node_m.get_data(generator_instance.node, "residual_load")[:] -= new_trace
         update_lt_generation(generator_instance, new_trace, interval_resolutions)
+    if (
+        generator_instance.unit_type == "flexible"
+        and generator_instance.min_load_pct > 0.0
+        and added_capacity > 0.0
+    ):
+        baseline_power = added_capacity * generator_instance.min_load_pct
+        node_m.get_data(generator_instance.node, "residual_load")[:] -= baseline_power
     return None
 
 
@@ -472,6 +482,18 @@ def check_unit_type(generator_instance: Generator_InstanceType, unit_type: unico
 
 
 @njit(fastmath=FASTMATH)
+def get_min_load_power(generator_instance: Generator_InstanceType) -> float64:
+    """
+    Return the always-on baseline power for a flexible Generator.
+    """
+    if generator_instance.unit_type != "flexible":
+        return 0.0
+    if generator_instance.min_load_pct <= 0.0:
+        return 0.0
+    return generator_instance.capacity * generator_instance.min_load_pct
+
+
+@njit(fastmath=FASTMATH)
 def set_flexible_max_t(
     generator_instance: Generator_InstanceType,
     interval: int64,
@@ -524,7 +546,6 @@ def set_flexible_max_t(
             else:
                 month_remaining = generator_instance.remaining_energy_month[interval - 1] / resolution
             energy_limit = min(energy_limit, month_remaining)
-        generator_instance.flexible_max_t = min(generator_instance.capacity, energy_limit)
     else:
         energy_limit = (
             generator_instance.remaining_energy_temp_reverse / resolution
@@ -534,7 +555,18 @@ def set_flexible_max_t(
         if len(generator_instance.monthly_constraints_data) > 0:
             month_remaining = generator_instance.remaining_energy_month_temp_reverse / resolution
             energy_limit = min(energy_limit, month_remaining)
-        generator_instance.flexible_max_t = min(generator_instance.capacity, energy_limit)
+    flexible_capacity = generator_instance.capacity
+    if generator_instance.min_load_pct > 0.0:
+        flexible_capacity = max(generator_instance.capacity * (1.0 - generator_instance.min_load_pct), 0.0)
+
+    generator_instance.flexible_max_t = min(flexible_capacity, energy_limit)
+
+    if forward_time_flag and generator_instance.ramp_rate_pct > 0.0:
+        prev_dispatch = 0.0
+        if interval > 0 and len(generator_instance.dispatch_power) > 0:
+            prev_dispatch = generator_instance.dispatch_power[interval - 1]
+        max_delta = generator_instance.ramp_rate_pct * generator_instance.capacity * resolution
+        generator_instance.flexible_max_t = min(generator_instance.flexible_max_t, prev_dispatch + max_delta)
 
     if merit_order_idx == 0:
         generator_instance.node.flexible_max_t[0] = generator_instance.flexible_max_t
@@ -688,10 +720,13 @@ def calculate_lt_generation(generator_instance: Generator_InstanceType, interval
     Attributes modified for the flexible Generator instance: lt_generation, line, unit_lt_hours.
     Attributes modified for the referenced Generator.line: lt_flows.
     """
-    update_lt_generation(generator_instance, generator_instance.dispatch_power, interval_resolutions)
-    generator_instance.unit_lt_hours = sum(
-        np.ceil(generator_instance.dispatch_power / generator_instance.unit_size) * interval_resolutions
-    )
+    baseline_power = get_min_load_power(generator_instance)
+    if baseline_power > 0.0:
+        total_power = generator_instance.dispatch_power + baseline_power
+    else:
+        total_power = generator_instance.dispatch_power
+    update_lt_generation(generator_instance, total_power, interval_resolutions)
+    generator_instance.unit_lt_hours = sum(np.ceil(total_power / generator_instance.unit_size) * interval_resolutions)
     return None
 
 
@@ -706,7 +741,7 @@ def calculate_variable_costs(generator_instance: Generator_InstanceType) -> floa
 
     Returns:
     -------
-    float64: Total variable costs ($), equal to sum of fuel and VO&M costs.
+    float64: Total variable costs ($), equal to sum of fuel, VO&M, and start costs.
 
     Side-effects:
     -------
@@ -720,6 +755,15 @@ def calculate_variable_costs(generator_instance: Generator_InstanceType) -> floa
         generator_instance.unit_lt_hours,
         generator_instance.cost,
     )
+    if generator_instance.start_cost_per_mw > 0.0 and len(generator_instance.dispatch_power) > 0:
+        start_cost = 0.0
+        prev_dispatch = 0.0
+        for dispatch in generator_instance.dispatch_power:
+            delta = dispatch - prev_dispatch
+            if delta > 0.0:
+                start_cost += delta * 1000 * generator_instance.start_cost_per_mw
+            prev_dispatch = dispatch
+        generator_instance.lt_costs.vom += start_cost
     return ltcosts_m.get_variable(generator_instance.lt_costs)
 
 

@@ -325,8 +325,9 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
             "initial_capacity_lifetime",
             "max_build",
             "min_build",
+            "start_cost_per_mw",
         ]:
-            if field not in item:
+            if field not in item or is_nan(item[field]):
                 continue
             if not validate_range(item[field], 0):
                 model_logger.error("'%s' must be float greater than or equal to 0", field)
@@ -335,6 +336,16 @@ def validate_generators(generators_dict, scenarios_list, scenario_fuels, scenari
         if not validate_range(item["discount_rate"], 0, 1):
             model_logger.error("'discount_rate' must be float in range [0,1]")
             flag = False
+
+        if "min_load_pct" in item and not is_nan(item["min_load_pct"]):
+            if not validate_range(item["min_load_pct"], 0, 1):
+                model_logger.error("'min_load_pct' must be float in range [0,1]")
+                flag = False
+
+        if "ramp_rate_pct" in item and not is_nan(item["ramp_rate_pct"]):
+            if not validate_range(item["ramp_rate_pct"], 0, 1):
+                model_logger.error("'ramp_rate_pct' must be float in range [0,1]")
+                flag = False
 
         if not validate_enum(item["unit_type"], ["solar", "wind", "flexible", "baseload"]):
             model_logger.error("'unit_type' must be one of ['solar', 'wind', 'flexible', 'baseload']")
