@@ -496,7 +496,7 @@ def update_deficit_block(fleet_instance: Fleet_InstanceType) -> None:
 
 @njit(fastmath=FASTMATH)
 def assign_precharging_values(
-    fleet_instance: Fleet_InstanceType, interval: int64, resolution: float64, year: int64
+    fleet_instance: Fleet_InstanceType, interval: int64, resolution: float64, year: int64, static_instance
 ) -> None:
     """
     Once the first time interval in a deficit block is located (during reverse-time balancing),
@@ -513,6 +513,7 @@ def assign_precharging_values(
     resolution (float64): Resolution of the interval (hours per time interval).
     year (int64): Defines the number of years that have completed balancing since the start of the
         optimisation. Used as the index for the Generator.annual_constraints_data array.
+    static_instance (ScenarioParameters_InstanceType): Static parameters providing year boundaries.
 
     Returns:
     -------

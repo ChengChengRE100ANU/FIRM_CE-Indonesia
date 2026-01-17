@@ -101,6 +101,11 @@ class Statistics:
                 expanded_array[idx] = block_array[block]
         return expanded_array
 
+    def get_generator_energy_trace(self, generator) -> NDArray[np.float64]:
+        if generator.data.shape[0] == 0:
+            return np.zeros(self.solution.static.intervals_count, dtype=np.float64)
+        return generator.data * generator.capacity
+
     def generate_result_files(self) -> None:
         self.result_files = {
             "capacities": self.generate_capacities_file(),
@@ -305,7 +310,8 @@ class Statistics:
                         case "flexible":
                             data_array[:, col] = self.expand_block_data(generator.dispatch_power * 1000)
                         case _:
-                            data_array[:, col] = self.expand_block_data(generator.data * generator.capacity * 1000)
+                            trace = self.get_generator_energy_trace(generator)
+                            data_array[:, col] = self.expand_block_data(trace * 1000)
                     col += 1
 
                 for storage in self.solution.fleet.storages.values():
@@ -368,19 +374,16 @@ class Statistics:
                     match generator.unit_type:
                         case "solar":
                             column_idx = len(self.solution.network.nodes) + generator.node.order
-                            data_array[:, column_idx] += self.expand_block_data(
-                                generator.data * generator.capacity * 1000
-                            )
+                            trace = self.get_generator_energy_trace(generator)
+                            data_array[:, column_idx] += self.expand_block_data(trace * 1000)
                         case "wind":
                             column_idx = 2 * len(self.solution.network.nodes) + generator.node.order
-                            data_array[:, column_idx] += self.expand_block_data(
-                                generator.data * generator.capacity * 1000
-                            )
+                            trace = self.get_generator_energy_trace(generator)
+                            data_array[:, column_idx] += self.expand_block_data(trace * 1000)
                         case "baseload":
                             column_idx = 3 * len(self.solution.network.nodes) + generator.node.order
-                            data_array[:, column_idx] += self.expand_block_data(
-                                generator.data * generator.capacity * 1000
-                            )
+                            trace = self.get_generator_energy_trace(generator)
+                            data_array[:, column_idx] += self.expand_block_data(trace * 1000)
                         case "flexible":
                             column_idx = 4 * len(self.solution.network.nodes) + generator.node.order
                             data_array[:, column_idx] += self.expand_block_data(generator.dispatch_power * 1000)
@@ -435,11 +438,14 @@ class Statistics:
                 for generator in self.solution.fleet.generators.values():
                     match generator.unit_type:
                         case "solar":
-                            data_array[:, 1] += self.expand_block_data(generator.data * generator.capacity * 1000)
+                            trace = self.get_generator_energy_trace(generator)
+                            data_array[:, 1] += self.expand_block_data(trace * 1000)
                         case "wind":
-                            data_array[:, 2] += self.expand_block_data(generator.data * generator.capacity * 1000)
+                            trace = self.get_generator_energy_trace(generator)
+                            data_array[:, 2] += self.expand_block_data(trace * 1000)
                         case "baseload":
-                            data_array[:, 3] += self.expand_block_data(generator.data * generator.capacity * 1000)
+                            trace = self.get_generator_energy_trace(generator)
+                            data_array[:, 3] += self.expand_block_data(trace * 1000)
                         case "flexible":
                             data_array[:, 4] += self.expand_block_data(generator.dispatch_power * 1000)
                             data_array[:, 6] += self.expand_block_data(generator.remaining_energy * 1000)
@@ -488,7 +494,7 @@ class Statistics:
         )
         total_generation += (
             sum(
-                sum(generator.data * generator.capacity)
+                sum(self.get_generator_energy_trace(generator))
                 for generator in self.solution.fleet.generators.values()
                 if generator.unit_type != "flexible"
             )
@@ -551,7 +557,7 @@ class Statistics:
                 data_array[0, col] = round(
                     safe_divide(
                         ltcosts_m.get_total(generator.lt_costs),
-                        sum(generator.data * generator.capacity) * self.solution.static.resolution * 1000,
+                        sum(self.get_generator_energy_trace(generator)) * self.solution.static.resolution * 1000,
                     ),
                     2,
                 )
@@ -628,7 +634,7 @@ class Statistics:
             if generator_m.check_unit_type(generator, "flexible"):
                 data_array[:, col] = self.calculate_annual_energies(generator.dispatch_power)
             else:
-                data_array[:, col] = self.calculate_annual_energies(generator.data * generator.capacity)
+                data_array[:, col] = self.calculate_annual_energies(self.get_generator_energy_trace(generator))
             col += 1
 
         for storage in self.solution.fleet.storages.values():

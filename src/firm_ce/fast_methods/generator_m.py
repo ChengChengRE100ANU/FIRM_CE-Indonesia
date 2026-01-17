@@ -332,7 +332,6 @@ def update_lt_generation(
 def initialise_annual_limit(
     generator_instance: Generator_InstanceType,
     static_instance,
-    static_instance,
     year: int64,
     first_t: int64,
 ) -> None:

@@ -397,7 +397,7 @@ def determine_precharge_energies_for_deficit_block(interval: int64, solution, ye
 
         if network_m.check_precharging_end(solution.network, interval):
             fleet_m.assign_precharging_values(
-                solution.fleet, interval, solution.static.interval_resolutions[interval], year
+                solution.fleet, interval, solution.static.interval_resolutions[interval], year, solution.static
             )
             return interval
 
