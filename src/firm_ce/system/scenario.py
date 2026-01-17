@@ -327,7 +327,14 @@ class Scenario:
             x_index += 1
         return None
 
-    def solve(self, config: ModelConfig) -> OptimizeResult:
+    def solve(
+        self,
+        config: ModelConfig,
+        pv_prev_total: float = 0.0,
+        pv_cagr_cap: float | None = None,
+        pv_first_year_cap_gw: float | None = None,
+        expansion_interval_years: int = 1,
+    ) -> OptimizeResult:
         """
         Builds a Solver object and evaluates the solution. The type of optimisation is defined by the Model.type.
 
@@ -348,7 +355,20 @@ class Scenario:
         and the best candidate solution from each iteration of the optimisation (`callback.csv`).
         """
         solver = Solver(
-            config, self.x0, self.static, self.fleet, self.network, self.logger, self.name, self.initial_population
+            config,
+            self.x0,
+            self.static,
+            self.fleet,
+            self.network,
+            self.logger,
+            self.name,
+            self.initial_population,
+            pv_prev_total=pv_prev_total,
+            pv_cagr_cap=pv_cagr_cap if pv_cagr_cap is not None else config.pv_cagr_cap,
+            pv_first_year_cap_gw=(
+                pv_first_year_cap_gw if pv_first_year_cap_gw is not None else config.pv_first_year_cap_gw
+            ),
+            expansion_interval_years=expansion_interval_years,
         )
         solver.evaluate()
         return solver.result

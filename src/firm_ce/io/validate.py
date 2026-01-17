@@ -129,6 +129,8 @@ def validate_model_config(config_dict, model_logger):
         "novelty_k": validate_positive_int,
         "novelty_threshold": lambda v: validate_range(v, 0, 1),
         "expansion_interval_years": lambda v: validate_range(v, 0),
+        "pv_cagr_cap": lambda v: validate_range(v, 0),
+        "pv_first_year_cap_gw": lambda v: validate_range(v, 0),
     }
 
     for item in config_dict.values():

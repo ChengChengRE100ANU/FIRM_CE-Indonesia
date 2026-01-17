@@ -10,6 +10,7 @@ capacity expansion results/
 capacity expansion results no new coal/
 plots_out/
 plots_out_no_new_coal/
+temp_runs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

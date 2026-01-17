@@ -3,8 +3,9 @@ import time
 import numpy as np
 
 from firm_ce.common.constants import JIT_ENABLED, NUM_THREADS, PENALTY_MULTIPLIER
+from firm_ce.common.constants import DEFAULT_PV_CAGR_CAP, DEFAULT_PV_FIRST_YEAR_CAP_GW
 from firm_ce.common.jit_overload import jitclass, njit, prange
-from firm_ce.common.typing import boolean, float64, unicode_type
+from firm_ce.common.typing import boolean, float64, unicode_type, int64
 from firm_ce.fast_methods import fleet_m, generator_m, line_m, network_m, static_m, storage_m
 from firm_ce.optimisation.balancing import balance_for_period
 from firm_ce.system.components import Fleet_InstanceType
@@ -21,10 +22,14 @@ if JIT_ENABLED:
         ("evaluated", boolean),
         ("lcoe", float64),
         ("penalties", float64),
-        ("balancing_type", unicode_type),
-        ("fixed_costs_threshold", float64),
-        # Static jitclass instances
-        ("static", ScenarioParameters_InstanceType),
+    ("balancing_type", unicode_type),
+    ("fixed_costs_threshold", float64),
+    ("pv_prev_total", float64),
+    ("pv_cagr_cap", float64),
+    ("pv_first_year_cap_gw", float64),
+    ("expansion_interval_years", int64),
+    # Static jitclass instances
+    ("static", ScenarioParameters_InstanceType),
         # Dynamic jitclass instances
         ("fleet", Fleet_InstanceType),
         ("network", Network_InstanceType),
@@ -81,6 +86,10 @@ class Solution:
         network: Network_InstanceType,
         balancing_type: unicode_type,
         fixed_costs_threshold: float64,
+        pv_prev_total: float64 = 0.0,
+        pv_cagr_cap: float64 = DEFAULT_PV_CAGR_CAP,
+        pv_first_year_cap_gw: float64 = DEFAULT_PV_FIRST_YEAR_CAP_GW,
+        expansion_interval_years: int64 = 1,
     ) -> None:
         """
         Initialise a Solution instance and construct dynamic copies of Fleet and Network.
@@ -114,6 +123,10 @@ class Solution:
         self.static = static
         self.balancing_type = balancing_type
         self.fixed_costs_threshold = fixed_costs_threshold
+        self.pv_prev_total = pv_prev_total
+        self.pv_cagr_cap = pv_cagr_cap
+        self.pv_first_year_cap_gw = pv_first_year_cap_gw
+        self.expansion_interval_years = expansion_interval_years
 
         # These are dynamic jitclass instances. It is SAFE to modify
         # some attributes within a worker process of the optimiser
@@ -130,6 +143,10 @@ class Solution:
 
         fleet_m.build_capacities(self.fleet, x, self.static.interval_resolutions)
         network_m.build_capacity(self.network, x)
+
+        # PV growth penalty setup
+        self.pv_penalty = 0.0
+        self._apply_pv_growth_penalty()
 
         retrofit_overbuild = fleet_m.calculate_retrofit_overbuild(self.fleet)
         if retrofit_overbuild > 0.0:
@@ -186,6 +203,34 @@ class Solution:
                 self.penalties += (self.static.year_count - year) * annual_unserved_energy * PENALTY_MULTIPLIER
                 return False
         return True
+
+    def _apply_pv_growth_penalty(self) -> None:
+        """
+        Apply penalties for exceeding PV growth caps.
+
+        Rules:
+        - Year 0 (first modeled year): total PV capacity (initial + new build) capped at pv_first_year_cap_gw.
+        - Subsequent years: total PV capacity after build must not exceed prev_total * (1 + pv_cagr_cap) ** expansion_interval_years.
+        Penalty is linear in the excess capacity (GW) scaled by PENALTY_MULTIPLIER.
+        """
+        pv_total = 0.0
+        for gen in self.fleet.generators.values():
+            if gen.name.startswith("pv_"):
+                pv_total += gen.capacity
+
+        if self.static.year_count > 0 and self.static.first_year == self.static.final_year:
+            # Determine if this is the first modeled year in a capacity-expansion run by checking pv_prev_total
+            if self.pv_prev_total <= 0.0:
+                allowed = self.pv_first_year_cap_gw
+            else:
+                allowed = self.pv_prev_total * (1.0 + self.pv_cagr_cap) ** max(1, self.expansion_interval_years)
+        else:
+            # Fallback: treat as first year only
+            allowed = self.pv_first_year_cap_gw if self.pv_prev_total <= 0.0 else self.pv_prev_total * (1.0 + self.pv_cagr_cap)
+
+        excess = max(0.0, pv_total - allowed)
+        if excess > 0:
+            self.pv_penalty = excess * PENALTY_MULTIPLIER
 
     def calculate_fixed_costs(self) -> float64:
         """
@@ -341,7 +386,7 @@ class Solution:
 
         lcoe = total_costs / np.abs(sum(self.static.year_energy_demand) - total_line_losses) / 1000  # $/MWh
 
-        return lcoe, self.penalties
+        return lcoe, self.penalties + self.pv_penalty
 
     def evaluate(self):
         """
@@ -375,6 +420,10 @@ def parallel_wrapper(
     network: Network_InstanceType,
     balancing_type: unicode_type,
     fixed_costs_threshold: float64,
+    pv_prev_total: float64 = 0.0,
+    pv_cagr_cap: float64 = DEFAULT_PV_CAGR_CAP,
+    pv_first_year_cap_gw: float64 = DEFAULT_PV_FIRST_YEAR_CAP_GW,
+    expansion_interval_years: int64 = 1,
 ) -> float64[:, :]:
     """
     A wrapper receives the vectorised differential evolution population and evaluates it over a parallel range.
@@ -405,7 +454,18 @@ def parallel_wrapper(
     result = np.zeros((3, n_points), dtype=np.float64)
     for j in prange(n_points):
         xj = xs[:, j]
-        sol = Solution(xj, static, fleet, network, balancing_type, fixed_costs_threshold)
+        sol = Solution(
+            xj,
+            static,
+            fleet,
+            network,
+            balancing_type,
+            fixed_costs_threshold,
+            pv_prev_total,
+            pv_cagr_cap,
+            pv_first_year_cap_gw,
+            expansion_interval_years,
+        )
         sol.evaluate()
         result[0, j] = sol.lcoe + sol.penalties
         result[1, j] = sol.lcoe
@@ -420,6 +480,10 @@ def evaluate_vectorised_xs(
     network: Network_InstanceType,
     balancing_type: unicode_type,
     fixed_costs_threshold: float64,
+    pv_prev_total: float64 = 0.0,
+    pv_cagr_cap: float64 = DEFAULT_PV_CAGR_CAP,
+    pv_first_year_cap_gw: float64 = DEFAULT_PV_FIRST_YEAR_CAP_GW,
+    expansion_interval_years: int64 = 1,
 ):
     """
     A wrapper receives the vectorised differential evolution population and passes it to the parallel wrapper.
@@ -446,7 +510,18 @@ def evaluate_vectorised_xs(
         and the penalties. This is the value minimised by the differential evolution optimisation.
     """
     start_time = time.time()
-    result = parallel_wrapper(xs, static, fleet, network, balancing_type, fixed_costs_threshold)
+    result = parallel_wrapper(
+        xs,
+        static,
+        fleet,
+        network,
+        balancing_type,
+        fixed_costs_threshold,
+        pv_prev_total,
+        pv_cagr_cap,
+        pv_first_year_cap_gw,
+        expansion_interval_years,
+    )
     end_time = time.time()
     print(f"Average objective time: {NUM_THREADS*(end_time-start_time)/xs.shape[1]:.4f} seconds.")
     print(f"Iteration time: {(end_time-start_time):.4f} seconds for {NUM_THREADS} workers.")

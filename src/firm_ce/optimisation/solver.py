@@ -36,6 +36,10 @@ class Solver:
         scenario_logger: Logger,
         scenario_name: str,
         initial_population: Union[NDArray[np.float64], str] = "latinhypercube",
+        pv_prev_total: float = 0.0,
+        pv_cagr_cap: float = 0.69,
+        pv_first_year_cap_gw: float = 10.0,
+        expansion_interval_years: int = 1,
     ) -> None:
         self.config = config
         self.decision_x0 = initial_x_candidate if len(initial_x_candidate) > 0 else None
@@ -50,6 +54,10 @@ class Solver:
         self.optimal_lcoe = None
         self.initial_population = initial_population
         self.iterations = config.iterations
+        self.pv_prev_total = pv_prev_total
+        self.pv_cagr_cap = pv_cagr_cap
+        self.pv_first_year_cap_gw = pv_first_year_cap_gw
+        self.expansion_interval_years = expansion_interval_years
 
     def get_bounds(self) -> NDArray[np.float64]:
         def power_capacity_bounds(
@@ -110,13 +118,27 @@ class Solver:
 
     def get_differential_evolution_args(
         self,
-    ) -> Tuple[ScenarioParameters_InstanceType, Fleet_InstanceType, Network_InstanceType, str, float]:
+    ) -> Tuple[
+        ScenarioParameters_InstanceType,
+        Fleet_InstanceType,
+        Network_InstanceType,
+        str,
+        float,
+        float,
+        float,
+        float,
+        int,
+    ]:
         args = (
             self.parameters_static,
             self.fleet_static,
             self.network_static,
             self.config.balancing_type,
             self.config.fixed_costs_threshold,
+            self.pv_prev_total,
+            self.pv_cagr_cap,
+            self.pv_first_year_cap_gw,
+            self.expansion_interval_years,
         )
         return args
 

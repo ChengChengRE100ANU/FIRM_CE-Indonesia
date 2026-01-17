@@ -13,6 +13,7 @@ from firm_ce.io.validate import ModelData
 from firm_ce.optimisation.statistics import Statistics
 from firm_ce.system.parameters import ModelConfig
 from firm_ce.system.scenario import Scenario
+from firm_ce.common.constants import DEFAULT_PV_CAGR_CAP, DEFAULT_PV_FIRST_YEAR_CAP_GW
 
 
 class Model:
@@ -76,7 +77,7 @@ class Model:
             for scenario_idx in model_data.scenarios
         }
 
-    def solve(self) -> None:
+    def solve(self, pv_prev_total: float = 0.0, expansion_interval_years: int = 1) -> None:
         """
         Execute an optimisation for each Scenario: load datafiles, run the optimisation, generate and write results,
         then unload data before moving to the next Scenario.
@@ -114,7 +115,13 @@ class Model:
                 f"Datafiles loaded at {datafile_loadtime_str} ({datafile_loadtime - start_time:.4f} seconds)."
             )
 
-            de_result = scenario.solve(self.config)
+            de_result = scenario.solve(
+                self.config,
+                pv_prev_total=pv_prev_total,
+                pv_cagr_cap=self.config.pv_cagr_cap,
+                pv_first_year_cap_gw=self.config.pv_first_year_cap_gw,
+                expansion_interval_years=expansion_interval_years,
+            )
 
             solve_time = time.time()
             solve_time_str = datetime.fromtimestamp(solve_time).strftime("%d/%m/%Y %H:%M:%S")
@@ -255,7 +262,7 @@ class Model:
             demand_sum = 0.0
 
             for start_year in range(first_year, final_year + 1, interval_years):
-                end_year = min(start_year + interval_years - 1, final_year)
+                end_year = start_year  # model a single year snapshot at each interval step
 
                 scenario_iter_df = scenario_only_df.copy()
                 scenario_iter_df.loc[:, "firstyear"] = start_year
@@ -276,6 +283,7 @@ class Model:
                 self._apply_retirements(generator_state, start_year)
                 self._apply_storage_retirements(storage_state, start_year)
                 self._apply_retirements(line_state, start_year)
+                pv_prev_total = Model._sum_pv_capacity(generator_state)
 
                 generators_df = self._select_year_rows(generators_df_base, start_year, "generators.csv")
                 storages_df = self._select_year_rows(storages_df_base, start_year, "storages.csv")
@@ -323,7 +331,7 @@ class Model:
                     data_directory=work_data_dir,
                     logging_flag=self.logging_flag,
                 )
-                interval_model.solve()
+                interval_model.solve(pv_prev_total=pv_prev_total, expansion_interval_years=interval_years)
 
                 interval_scenario = next(iter(interval_model.scenarios.values()))
                 stats = interval_scenario.statistics
@@ -354,6 +362,7 @@ class Model:
                 self._update_generator_state(generator_state, gen_builds, gen_lifetimes, start_year)
                 self._update_storage_state(storage_state, stor_builds_p, stor_builds_e, stor_lifetimes, start_year)
                 self._update_line_state(line_state, line_builds, line_lifetimes, start_year)
+                pv_prev_total = Model._sum_pv_capacity(generator_state)
 
                 self._append_pathway_records_from_state(
                     records,
@@ -666,6 +675,14 @@ class Model:
     @staticmethod
     def _sum_vintages(vintages: List[dict]) -> float:
         return float(sum(v["capacity"] for v in vintages))
+
+    @staticmethod
+    def _sum_pv_capacity(generator_state: Dict[str, dict]) -> float:
+        pv_total = 0.0
+        for name, state in generator_state.items():
+            if name.startswith("pv_"):
+                pv_total += Model._sum_vintages(state.get("vintages", []))
+        return pv_total
 
     @staticmethod
     def _apply_generator_state(df: pd.DataFrame, scenario_name: str, state: Dict[str, dict]) -> None:

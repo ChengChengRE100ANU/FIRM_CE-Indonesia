@@ -286,13 +286,6 @@ def update_residual_load(
         new_trace = get_data(generator_instance, "trace") * added_capacity
         node_m.get_data(generator_instance.node, "residual_load")[:] -= new_trace
         update_lt_generation(generator_instance, new_trace, interval_resolutions)
-    if (
-        generator_instance.unit_type == "flexible"
-        and generator_instance.min_load_pct > 0.0
-        and added_capacity > 0.0
-    ):
-        baseline_power = added_capacity * generator_instance.min_load_pct
-        node_m.get_data(generator_instance.node, "residual_load")[:] -= baseline_power
     return None
 
 
@@ -612,13 +605,16 @@ def dispatch(generator_instance: Generator_InstanceType, interval: int64, merit_
     Attributes modified for the flexible Generator instance: dispatch_power, node.
     Attributes modified for referenced Generator.node: flexible_power.
     """
+    # Preserve any already-committed dispatch (e.g., minimum output) and add additional dispatch on top.
+    baseline_dispatch = generator_instance.dispatch_power[interval]
+
     if merit_order_idx == 0:
-        generator_instance.dispatch_power[interval] = min(
+        additional_dispatch = min(
             max(generator_instance.node.netload_t - generator_instance.node.storage_power[interval], 0.0),
             generator_instance.flexible_max_t,
         )
     else:
-        generator_instance.dispatch_power[interval] = min(
+        additional_dispatch = min(
             max(
                 generator_instance.node.netload_t
                 - generator_instance.node.storage_power[interval]
@@ -627,7 +623,8 @@ def dispatch(generator_instance: Generator_InstanceType, interval: int64, merit_
             ),
             generator_instance.flexible_max_t,
         )
-    generator_instance.node.flexible_power[interval] += generator_instance.dispatch_power[interval]
+    generator_instance.dispatch_power[interval] = baseline_dispatch + additional_dispatch
+    generator_instance.node.flexible_power[interval] += additional_dispatch
     return None
 
 

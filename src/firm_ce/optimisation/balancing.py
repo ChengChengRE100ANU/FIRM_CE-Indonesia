@@ -60,6 +60,21 @@ def initialise_interval(
             )
         for idx, storage_order in enumerate(node.storage_merit_order):
             storage_m.set_dispatch_max_t(fleet.storages[storage_order], interval, resolution, idx, forward_time_flag)
+
+    # Commit minimum output for flexible generators before balancing. This ensures the minimum operating level
+    # contributes to net load reduction, dispatch power, and remaining energy constraints.
+    for node in network.nodes.values():
+        for flexible_order in node.flexible_merit_order:
+            generator = fleet.generators[flexible_order]
+            if generator.min_load_pct <= 0.0:
+                continue
+            baseline_power = generator.capacity * generator.min_load_pct
+            generator.dispatch_power[interval] = baseline_power
+            node.flexible_power[interval] += baseline_power
+
+    # Recalculate netload after committing minimum output and any existing dispatch.
+    for node in network.nodes.values():
+        node_m.update_netload_t(node, interval, False)
     return None
 
 

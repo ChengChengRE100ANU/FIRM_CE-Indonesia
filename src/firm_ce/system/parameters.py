@@ -157,3 +157,5 @@ class ModelConfig:
         self.novelty_k = int(config_dict.get("novelty_k", 5))
         self.novelty_threshold = float(config_dict.get("novelty_threshold", 0.03))
         self.expansion_interval_years = int(config_dict.get("expansion_interval_years", 0))
+        self.pv_cagr_cap = float(config_dict.get("pv_cagr_cap", 0.69))
+        self.pv_first_year_cap_gw = float(config_dict.get("pv_first_year_cap_gw", 10.0))

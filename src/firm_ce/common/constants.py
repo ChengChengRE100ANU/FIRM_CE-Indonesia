@@ -13,3 +13,7 @@ PENALTY_MULTIPLIER = 1e6
 TOLERANCE = 1e-6
 NUM_THREADS = int(os.getenv("NUM_THREADS", os.cpu_count()))
 FASTMATH = True
+
+# Defaults for PV growth constraints (overridden by config if present)
+DEFAULT_PV_CAGR_CAP = 0.69
+DEFAULT_PV_FIRST_YEAR_CAP_GW = 10.0
