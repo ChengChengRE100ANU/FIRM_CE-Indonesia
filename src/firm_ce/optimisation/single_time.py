@@ -22,14 +22,15 @@ if JIT_ENABLED:
         ("evaluated", boolean),
         ("lcoe", float64),
         ("penalties", float64),
-    ("balancing_type", unicode_type),
-    ("fixed_costs_threshold", float64),
-    ("pv_prev_total", float64),
-    ("pv_cagr_cap", float64),
-    ("pv_first_year_cap_gw", float64),
-    ("expansion_interval_years", int64),
-    # Static jitclass instances
-    ("static", ScenarioParameters_InstanceType),
+        ("pv_penalty", float64),
+        ("balancing_type", unicode_type),
+        ("fixed_costs_threshold", float64),
+        ("pv_prev_total", float64),
+        ("pv_cagr_cap", float64),
+        ("pv_first_year_cap_gw", float64),
+        ("expansion_interval_years", int64),
+        # Static jitclass instances
+        ("static", ScenarioParameters_InstanceType),
         # Dynamic jitclass instances
         ("fleet", Fleet_InstanceType),
         ("network", Network_InstanceType),
