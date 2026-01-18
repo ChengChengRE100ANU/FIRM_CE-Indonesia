@@ -215,8 +215,8 @@ def update_netload_t(node_instance: Node_InstanceType, interval: int64, precharg
         get_data(node_instance, "residual_load")[interval] - node_instance.imports_exports[interval]
     )
 
-    # Always account for already-committed storage and flexible dispatch (including minimum output).
-    node_instance.netload_t -= node_instance.storage_power[interval] + node_instance.flexible_power[interval]
+    if precharging_flag:
+        node_instance.netload_t -= node_instance.storage_power[interval] + node_instance.flexible_power[interval]
     return None
 
 

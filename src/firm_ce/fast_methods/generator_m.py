@@ -608,21 +608,14 @@ def dispatch(generator_instance: Generator_InstanceType, interval: int64, merit_
     # Preserve any already-committed dispatch (e.g., minimum output) and add additional dispatch on top.
     baseline_dispatch = generator_instance.dispatch_power[interval]
 
-    if merit_order_idx == 0:
-        additional_dispatch = min(
-            max(generator_instance.node.netload_t - generator_instance.node.storage_power[interval], 0.0),
-            generator_instance.flexible_max_t,
-        )
-    else:
-        additional_dispatch = min(
-            max(
-                generator_instance.node.netload_t
-                - generator_instance.node.storage_power[interval]
-                - generator_instance.node.flexible_max_t[merit_order_idx - 1],
-                0.0,
-            ),
-            generator_instance.flexible_max_t,
-        )
+    # Exclude this generator's already-committed dispatch when estimating remaining net load.
+    other_flexible = max(generator_instance.node.flexible_power[interval] - baseline_dispatch, 0.0)
+    remaining_netload = (
+        generator_instance.node.netload_t - generator_instance.node.storage_power[interval] - other_flexible
+    )
+
+    additional_dispatch = min(max(remaining_netload, 0.0), generator_instance.flexible_max_t)
+
     generator_instance.dispatch_power[interval] = baseline_dispatch + additional_dispatch
     generator_instance.node.flexible_power[interval] += additional_dispatch
     return None
