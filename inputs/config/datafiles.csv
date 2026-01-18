@@ -17,3 +17,9 @@ id,scenarios,filename,datafile_type
 16,ce_2025_2060,flexible_annual_limit_ce_2025_2060.csv,flexible_annual_limit
 17,ce_2025_2060,baseload_ce_2025_2060.csv,generation
 18,ce_2025_2060,flexible_monthly_limit_ce_2025_2060.csv,flexible_monthly_limit
+19,ce_more_baseload,electricity_ce_2025_2060.csv,demand
+20,ce_more_baseload,solar_ce_2025_2060.csv,generation
+21,ce_more_baseload,wind_ce_2025_2060.csv,generation
+22,ce_more_baseload,flexible_annual_limit_ce_more_baseload.csv,flexible_annual_limit
+23,ce_more_baseload,baseload_ce_more_baseload.csv,generation
+24,ce_more_baseload,flexible_monthly_limit_ce_more_baseload.csv,flexible_monthly_limit

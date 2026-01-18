@@ -10,6 +10,6 @@ id,name,value
 8,fixed_costs_threshold,400
 9,novelty_k,5
 10,novelty_threshold,0.03
-11,expansion_interval_years,5
+11,expansion_interval_years,1
 12,pv_cagr_cap,0.69
 13,pv_first_year_cap_gw,10
