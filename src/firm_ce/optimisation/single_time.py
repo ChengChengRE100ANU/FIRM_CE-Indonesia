@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-from firm_ce.common.constants import JIT_ENABLED, NUM_THREADS, PENALTY_MULTIPLIER
+from firm_ce.common.constants import JIT_ENABLED, NUM_THREADS, PENALTY_MULTIPLIER, NP_FLOAT_MAX
 from firm_ce.common.constants import DEFAULT_PV_CAGR_CAP, DEFAULT_PV_FIRST_YEAR_CAP_GW
 from firm_ce.common.jit_overload import jitclass, njit, prange
 from firm_ce.common.typing import boolean, float64, unicode_type, int64
@@ -54,7 +54,7 @@ class Solution:
     an instance of this class. Most attributes of dynamic jitclass instances are safe to modify within an
     optimisation. Refer to the class definitions for specific jitclasses for information on which attributes
     remain unsafe to modify.
-    - Reliability and fixed-cost constraints may terminate evaluation early, accumulating penalties scaled by
+    - PV, reliability, and fixed-cost constraints may terminate evaluation early, accumulating penalties scaled by
     PENALTY_MULTIPLIER. If the fixed cost threshold is set too low, it is very likely that the optimisation will
     get stuck in a local minimum (fixed costs just below threshold, reliability constraint still breached). This
     issue can be mitigated by increasing the mutation factor, raising the fixed cost threshold, or increasing the build
@@ -229,8 +229,9 @@ class Solution:
             # Fallback: treat as first year only
             allowed = self.pv_first_year_cap_gw if self.pv_prev_total <= 0.0 else self.pv_prev_total * (1.0 + self.pv_cagr_cap)
 
-        excess = max(0.0, pv_total - allowed)
-        if excess > 0:
+        tolerance = 1e-5  # GW tolerance to avoid numerical noise tripping the PV cap
+        excess = pv_total - allowed
+        if excess > tolerance:
             self.pv_penalty = excess * PENALTY_MULTIPLIER
 
     def calculate_fixed_costs(self) -> float64:
@@ -374,12 +375,27 @@ class Solution:
         *Dynamic* or *Precharging* comments in the relevant jitclass definitions.
         """
         total_costs = self.calculate_fixed_costs()
-        if not self.check_fixed_costs(total_costs):
-            return self.lcoe, total_costs * PENALTY_MULTIPLIER + self.penalties  # End early if fixed cost constraint breached
+        total_demand_gwh = sum(self.static.year_energy_demand)
+        if total_demand_gwh > 0:
+            fixed_cost_intensity = total_costs / total_demand_gwh / 1000  # $/MWh_demand
+        else:
+            fixed_cost_intensity = NP_FLOAT_MAX
+
+        pv_excess_gw = 0.0
+        if self.pv_penalty > 0:
+            pv_excess_gw = self.pv_penalty / PENALTY_MULTIPLIER
+
+        fixed_cost_violation = 0.0
+        if fixed_cost_intensity > self.fixed_costs_threshold:
+            fixed_cost_violation = fixed_cost_intensity - self.fixed_costs_threshold
+
+        if pv_excess_gw > 0.1 or fixed_cost_violation > 0.0:
+            pv_penalty = self.pv_penalty if pv_excess_gw > 0.1 else 0.0
+            return fixed_cost_intensity, self.penalties + pv_penalty  # End early if PV or fixed cost constraint breached
 
         reliability_check = self.balance_residual_load()
         if not reliability_check:
-            return self.lcoe, self.penalties  # End early if reliability constraint breached
+            return fixed_cost_intensity, self.penalties  # End early if reliability constraint breached
 
         total_costs += self.calculate_variable_costs()
 

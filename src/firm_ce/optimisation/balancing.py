@@ -66,9 +66,9 @@ def initialise_interval(
     for node in network.nodes.values():
         for flexible_order in node.flexible_merit_order:
             generator = fleet.generators[flexible_order]
-            if generator.min_load_pct <= 0.0:
+            baseline_power = generator_m.get_baseline_power(generator, interval, static)
+            if baseline_power <= 0.0:
                 continue
-            baseline_power = generator.capacity * generator.min_load_pct
             generator.dispatch_power[interval] = baseline_power
             node.flexible_power[interval] += baseline_power
 
@@ -192,7 +192,6 @@ def balance_with_flexible(
     for node in network.nodes.values():
         if not node_m.check_remaining_netload(node, interval, "deficit"):
             continue
-        node.flexible_power[interval] = 0
         for idx, flexible_order in enumerate(node.flexible_merit_order):
             generator_m.dispatch(fleet.generators[flexible_order], interval, idx)
     return None
@@ -1074,6 +1073,16 @@ def resolve_energy_discontinuities(
             network_m.reset_flexible(solution.network, interval)
             fleet_m.reset_flexible(solution.fleet, interval)
 
+            # Re-commit minimum output for flexible generators after reset.
+            for node in solution.network.nodes.values():
+                for flexible_order in node.flexible_merit_order:
+                    generator = solution.fleet.generators[flexible_order]
+                    baseline_power = generator_m.get_baseline_power(generator, interval, solution.static)
+                    if baseline_power <= 0.0:
+                        continue
+                    generator.dispatch_power[interval] = baseline_power
+                    node.flexible_power[interval] += baseline_power
+
             balance_with_transmission(interval, solution.network, "precharging_adjust_storage", False)
             balance_with_flexible(interval, solution.network, solution.fleet)  # Local flexible
 
@@ -1081,7 +1090,7 @@ def resolve_energy_discontinuities(
                 balance_with_transmission(interval, solution.network, "flexible", False)
                 balance_with_flexible(interval, solution.network, solution.fleet)  # Neighbouring and local flexible
         else:
-            infeasible_flag = fleet_m.determine_feasible_flexible_dispatch(solution.fleet, interval)
+            infeasible_flag = fleet_m.determine_feasible_flexible_dispatch(solution.fleet, interval, solution.static)
             if infeasible_flag:
                 network_m.reset_transmission(solution.network, interval)
                 fleet_m.calculate_available_storage_dispatch(solution.fleet, interval)

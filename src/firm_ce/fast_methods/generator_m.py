@@ -1,6 +1,13 @@
 import numpy as np
 
-from firm_ce.common.constants import FASTMATH, TOLERANCE
+from firm_ce.common.constants import (
+    FASTMATH,
+    TOLERANCE,
+    DEBUG,
+    DEBUG_INTERVAL,
+    DEBUG_NODE_ORDER,
+    DEBUG_GENERATOR_ORDER,
+)
 from firm_ce.common.exceptions import (
     raise_getting_unloaded_data_error,
     raise_static_modification_error,
@@ -392,8 +399,7 @@ def initialise_monthly_limits(generator_instance: Generator_InstanceType, static
 def get_annual_limit(generator_instance: Generator_InstanceType, year: int64, static_instance) -> float64:
     """
     Get the annual generation limit (GWh) for a flexible Generator for the specified year.
-    Annual constraints data are interpreted as total capacity factor fractions, with the
-    implicit min-load baseline subtracted so remaining energy constrains flexible dispatch.
+    Annual constraints data are interpreted as total capacity factor fractions.
 
     Parameters:
     -------
@@ -408,7 +414,7 @@ def get_annual_limit(generator_instance: Generator_InstanceType, year: int64, st
     if len(get_data(generator_instance, "annual_constraints_data")) == 0:
         return 0.0
     fraction = get_data(generator_instance, "annual_constraints_data")[year]
-    effective_fraction = max(fraction - generator_instance.min_load_pct, 0.0)
+    effective_fraction = max(fraction, 0.0)
     first_t, last_t = static_m.get_year_t_boundaries(static_instance, year)
     hours = 0.0
     for interval in range(first_t, last_t):
@@ -500,6 +506,30 @@ def get_min_load_power(generator_instance: Generator_InstanceType) -> float64:
 
 
 @njit(fastmath=FASTMATH)
+def get_baseline_power(
+    generator_instance: Generator_InstanceType,
+    interval: int64,
+    static_instance,
+) -> float64:
+    """
+    Return the always-on baseline power for a flexible Generator, scaled down when the
+    annual limit is below the baseline energy.
+    """
+    if generator_instance.unit_type != "flexible":
+        return 0.0
+    if generator_instance.min_load_pct <= 0.0:
+        return 0.0
+    baseline_power = generator_instance.capacity * generator_instance.min_load_pct
+    annual_data = get_data(generator_instance, "annual_constraints_data")
+    if len(annual_data) > 0:
+        year_idx = static_instance.interval_month[interval] // 12
+        if year_idx < len(annual_data):
+            annual_fraction = max(annual_data[year_idx], 0.0)
+            baseline_power = min(baseline_power, generator_instance.capacity * annual_fraction)
+    return max(baseline_power, 0.0)
+
+
+@njit(fastmath=FASTMATH)
 def set_flexible_max_t(
     generator_instance: Generator_InstanceType,
     interval: int64,
@@ -538,41 +568,95 @@ def set_flexible_max_t(
     Attributes modified for the flexible Generator instance: flexible_max_t, node.
     Attributes modified for referenced Generator.node: flexible_max_t.
     """
-    if forward_time_flag:
-        energy_limit = (
-            generator_instance.remaining_energy[interval - 1] / resolution
-            if len(generator_instance.remaining_energy) > 0
-            else generator_instance.capacity
-        )
-        if len(generator_instance.monthly_constraints_data) > 0:
-            month_idx = static_instance.interval_month[interval]
-            month_start = static_instance.month_first_t[month_idx]
-            if interval == month_start:
-                month_remaining = get_month_limit(generator_instance, month_idx, static_instance) / resolution
+    baseline_power = get_baseline_power(generator_instance, interval, static_instance)
+    debug = False
+    if DEBUG:
+        debug = True
+        if DEBUG_INTERVAL >= 0 and interval != DEBUG_INTERVAL:
+            debug = False
+        if DEBUG_NODE_ORDER >= 0 and generator_instance.node.order != DEBUG_NODE_ORDER:
+            debug = False
+        if DEBUG_GENERATOR_ORDER >= 0 and generator_instance.order != DEBUG_GENERATOR_ORDER:
+            debug = False
+    flexible_capacity = max(generator_instance.capacity - baseline_power, 0.0)
+
+    energy_limit = generator_instance.capacity
+    remaining_energy_val = -1.0
+    baseline_energy_remaining = -1.0
+    if len(generator_instance.remaining_energy) > 0:
+        if forward_time_flag:
+            remaining_energy = generator_instance.remaining_energy[interval - 1]
+        else:
+            remaining_energy = generator_instance.remaining_energy_temp_reverse
+        remaining_energy_val = remaining_energy
+        year_idx = static_instance.interval_month[interval] // 12
+        if year_idx < static_instance.year_count - 1:
+            year_end = static_instance.year_first_t[year_idx + 1]
+        else:
+            year_end = static_instance.intervals_count
+        remaining_intervals = max(year_end - interval, 0)
+        remaining_hours = resolution * remaining_intervals
+        baseline_energy_remaining = baseline_power * remaining_hours
+        available_energy = max(remaining_energy - baseline_energy_remaining, 0.0)
+        energy_limit = available_energy / resolution
+
+    if len(generator_instance.monthly_constraints_data) > 0:
+        month_idx = static_instance.interval_month[interval]
+        month_start = static_instance.month_first_t[month_idx]
+        if month_idx < static_instance.month_count - 1:
+            month_end = static_instance.month_first_t[month_idx + 1]
+        else:
+            month_end = static_instance.intervals_count
+        if forward_time_flag:
+            if month_idx < len(generator_instance.monthly_constraints_data) and interval == month_start:
+                month_hours = resolution * (month_end - month_start)
+                month_remaining = (
+                    generator_instance.monthly_constraints_data[month_idx]
+                    * generator_instance.capacity
+                    * month_hours
+                )
+            elif month_idx < len(generator_instance.monthly_constraints_data):
+                month_remaining = generator_instance.remaining_energy_month[interval - 1]
             else:
-                month_remaining = generator_instance.remaining_energy_month[interval - 1] / resolution
-            energy_limit = min(energy_limit, month_remaining)
-    else:
-        energy_limit = (
-            generator_instance.remaining_energy_temp_reverse / resolution
-            if len(generator_instance.remaining_energy) > 0
-            else generator_instance.capacity
-        )
-        if len(generator_instance.monthly_constraints_data) > 0:
-            month_remaining = generator_instance.remaining_energy_month_temp_reverse / resolution
-            energy_limit = min(energy_limit, month_remaining)
-    flexible_capacity = generator_instance.capacity
-    if generator_instance.min_load_pct > 0.0:
-        flexible_capacity = max(generator_instance.capacity * (1.0 - generator_instance.min_load_pct), 0.0)
+                month_remaining = 0.0
+        else:
+            month_remaining = generator_instance.remaining_energy_month_temp_reverse
+        month_remaining_intervals = max(month_end - interval, 0)
+        month_remaining_hours = resolution * month_remaining_intervals
+        baseline_month_energy = baseline_power * month_remaining_hours
+        available_month_energy = max(month_remaining - baseline_month_energy, 0.0)
+        month_energy_limit = available_month_energy / resolution
+        energy_limit = min(energy_limit, month_energy_limit)
 
-    generator_instance.flexible_max_t = min(flexible_capacity, energy_limit)
+    generator_instance.flexible_max_t = max(min(flexible_capacity, energy_limit), 0.0)
 
+    ramp_limit = -1.0
     if forward_time_flag and generator_instance.ramp_rate_pct > 0.0:
         prev_dispatch = 0.0
         if interval > 0 and len(generator_instance.dispatch_power) > 0:
             prev_dispatch = generator_instance.dispatch_power[interval - 1]
+        # Ensure baseline output is treated as already committed for ramping
+        if prev_dispatch < baseline_power:
+            prev_dispatch = baseline_power
         max_delta = generator_instance.ramp_rate_pct * generator_instance.capacity * resolution
-        generator_instance.flexible_max_t = min(generator_instance.flexible_max_t, prev_dispatch + max_delta)
+        ramp_limit = max(prev_dispatch + max_delta - baseline_power, 0.0)
+        generator_instance.flexible_max_t = min(generator_instance.flexible_max_t, ramp_limit)
+
+    if debug:
+        print(
+            "DBG max_t",
+            interval,
+            generator_instance.order,
+            generator_instance.node.order,
+            baseline_power,
+            generator_instance.capacity,
+            flexible_capacity,
+            remaining_energy_val,
+            baseline_energy_remaining,
+            energy_limit,
+            ramp_limit,
+            generator_instance.flexible_max_t,
+        )
 
     if merit_order_idx == 0:
         generator_instance.node.flexible_max_t[0] = generator_instance.flexible_max_t
@@ -605,8 +689,18 @@ def dispatch(generator_instance: Generator_InstanceType, interval: int64, merit_
     Attributes modified for the flexible Generator instance: dispatch_power, node.
     Attributes modified for referenced Generator.node: flexible_power.
     """
+    debug = False
+    if DEBUG:
+        debug = True
+        if DEBUG_INTERVAL >= 0 and interval != DEBUG_INTERVAL:
+            debug = False
+        if DEBUG_NODE_ORDER >= 0 and generator_instance.node.order != DEBUG_NODE_ORDER:
+            debug = False
+        if DEBUG_GENERATOR_ORDER >= 0 and generator_instance.order != DEBUG_GENERATOR_ORDER:
+            debug = False
+
     # Preserve any already-committed dispatch (e.g., minimum output) and add additional dispatch on top.
-    baseline_dispatch = generator_instance.dispatch_power[interval]
+    baseline_dispatch = max(generator_instance.dispatch_power[interval], 0.0)
 
     # Exclude this generator's already-committed dispatch when estimating remaining net load.
     other_flexible = max(generator_instance.node.flexible_power[interval] - baseline_dispatch, 0.0)
@@ -614,10 +708,37 @@ def dispatch(generator_instance: Generator_InstanceType, interval: int64, merit_
         generator_instance.node.netload_t - generator_instance.node.storage_power[interval] - other_flexible
     )
 
+    if debug:
+        print(
+            "DBG dispatch pre",
+            interval,
+            generator_instance.order,
+            generator_instance.node.order,
+            baseline_dispatch,
+            other_flexible,
+            remaining_netload,
+            generator_instance.flexible_max_t,
+            generator_instance.capacity,
+            generator_instance.node.netload_t,
+            generator_instance.node.storage_power[interval],
+            generator_instance.node.flexible_power[interval],
+        )
+
     additional_dispatch = min(max(remaining_netload, 0.0), generator_instance.flexible_max_t)
+    additional_dispatch = min(additional_dispatch, max(generator_instance.capacity - baseline_dispatch, 0.0))
 
     generator_instance.dispatch_power[interval] = baseline_dispatch + additional_dispatch
     generator_instance.node.flexible_power[interval] += additional_dispatch
+    if debug:
+        print(
+            "DBG dispatch post",
+            interval,
+            generator_instance.order,
+            generator_instance.node.order,
+            additional_dispatch,
+            generator_instance.dispatch_power[interval],
+            generator_instance.node.flexible_power[interval],
+        )
     return None
 
 
@@ -658,46 +779,103 @@ def update_remaining_energy(
     -------
     Attributes modified for the flexible Generator instance: remaining_energy, remaining_energy_temp_reverse.
     """
+    year_idx = static_instance.interval_month[interval] // 12
+    month_idx = static_instance.interval_month[interval]
+
     if forward_time_flag:
         if len(generator_instance.remaining_energy) > 0:
-            generator_instance.remaining_energy[interval] = (
+            annual_limit = 0.0
+            annual_data = get_data(generator_instance, "annual_constraints_data")
+            if year_idx < len(annual_data):
+                annual_fraction = max(annual_data[year_idx], 0.0)
+                if year_idx < static_instance.year_count - 1:
+                    year_start = static_instance.year_first_t[year_idx]
+                    year_end = static_instance.year_first_t[year_idx + 1]
+                else:
+                    year_start = static_instance.year_first_t[year_idx]
+                    year_end = static_instance.intervals_count
+                annual_hours = resolution * (year_end - year_start)
+                annual_limit = generator_instance.capacity * annual_hours * annual_fraction
+            remaining_energy = (
                 generator_instance.remaining_energy[interval - 1]
                 - generator_instance.dispatch_power[interval] * resolution
             )
+            generator_instance.remaining_energy[interval] = min(max(remaining_energy, 0.0), annual_limit)
         if len(generator_instance.monthly_constraints_data) > 0:
-            month_idx = static_instance.interval_month[interval]
             month_start = static_instance.month_first_t[month_idx]
+            if month_idx < static_instance.month_count - 1:
+                month_end = static_instance.month_first_t[month_idx + 1]
+            else:
+                month_end = static_instance.intervals_count
+            month_limit = 0.0
+            if month_idx < len(generator_instance.monthly_constraints_data):
+                month_hours = resolution * (month_end - month_start)
+                month_limit = (
+                    generator_instance.monthly_constraints_data[month_idx]
+                    * generator_instance.capacity
+                    * month_hours
+                )
             if interval == month_start:
-                prev_remaining = get_month_limit(generator_instance, month_idx, static_instance)
+                prev_remaining = month_limit
             else:
                 prev_remaining = generator_instance.remaining_energy_month[interval - 1]
-            generator_instance.remaining_energy_month[interval] = prev_remaining - generator_instance.dispatch_power[
-                interval
-            ] * resolution
+            remaining_month_energy = prev_remaining - generator_instance.dispatch_power[interval] * resolution
+            generator_instance.remaining_energy_month[interval] = min(
+                max(remaining_month_energy, 0.0), month_limit
+            )
 
     else:
         if len(generator_instance.remaining_energy) > 0:
+            annual_limit = 0.0
+            annual_data = get_data(generator_instance, "annual_constraints_data")
+            if year_idx < len(annual_data):
+                annual_fraction = max(annual_data[year_idx], 0.0)
+                if year_idx < static_instance.year_count - 1:
+                    year_start = static_instance.year_first_t[year_idx]
+                    year_end = static_instance.year_first_t[year_idx + 1]
+                else:
+                    year_start = static_instance.year_first_t[year_idx]
+                    year_end = static_instance.intervals_count
+                annual_hours = resolution * (year_end - year_start)
+                annual_limit = generator_instance.capacity * annual_hours * annual_fraction
             if previous_year_flag:
-                generator_instance.remaining_energy_temp_reverse = (
+                remaining_energy = (
                     generator_instance.remaining_energy[interval - 1]
                     - generator_instance.dispatch_power[interval] * resolution
                 )
             else:
-                generator_instance.remaining_energy_temp_reverse -= (
-                    generator_instance.dispatch_power[interval] * resolution
-                )
-
-        if len(generator_instance.monthly_constraints_data) > 0:
-            if previous_month_flag:
-                month_idx = static_instance.interval_month[interval]
-                generator_instance.remaining_energy_month_temp_reverse = (
-                    get_month_limit(generator_instance, month_idx, static_instance)
+                remaining_energy = (
+                    generator_instance.remaining_energy_temp_reverse
                     - generator_instance.dispatch_power[interval] * resolution
                 )
+            generator_instance.remaining_energy_temp_reverse = min(max(remaining_energy, 0.0), annual_limit)
+
+        if len(generator_instance.monthly_constraints_data) > 0:
+            month_start = static_instance.month_first_t[month_idx]
+            if month_idx < static_instance.month_count - 1:
+                month_end = static_instance.month_first_t[month_idx + 1]
             else:
-                generator_instance.remaining_energy_month_temp_reverse -= (
-                    generator_instance.dispatch_power[interval] * resolution
+                month_end = static_instance.intervals_count
+            month_limit = 0.0
+            if month_idx < len(generator_instance.monthly_constraints_data):
+                month_hours = resolution * (month_end - month_start)
+                month_limit = (
+                    generator_instance.monthly_constraints_data[month_idx]
+                    * generator_instance.capacity
+                    * month_hours
                 )
+            if previous_month_flag:
+                remaining_month_energy = (
+                    month_limit - generator_instance.dispatch_power[interval] * resolution
+                )
+            else:
+                remaining_month_energy = (
+                    generator_instance.remaining_energy_month_temp_reverse
+                    - generator_instance.dispatch_power[interval] * resolution
+                )
+            generator_instance.remaining_energy_month_temp_reverse = min(
+                max(remaining_month_energy, 0.0), month_limit
+            )
     return None
 
 
@@ -723,13 +901,10 @@ def calculate_lt_generation(generator_instance: Generator_InstanceType, interval
     Attributes modified for the flexible Generator instance: lt_generation, line, unit_lt_hours.
     Attributes modified for the referenced Generator.line: lt_flows.
     """
-    baseline_power = get_min_load_power(generator_instance)
-    if baseline_power > 0.0:
-        total_power = generator_instance.dispatch_power + baseline_power
-    else:
-        total_power = generator_instance.dispatch_power
-    update_lt_generation(generator_instance, total_power, interval_resolutions)
-    generator_instance.unit_lt_hours = sum(np.ceil(total_power / generator_instance.unit_size) * interval_resolutions)
+    update_lt_generation(generator_instance, generator_instance.dispatch_power, interval_resolutions)
+    generator_instance.unit_lt_hours = sum(
+        np.ceil(generator_instance.dispatch_power / generator_instance.unit_size) * interval_resolutions
+    )
     return None
 
 
@@ -973,6 +1148,7 @@ def set_precharging_max_t(
             generator_instance.remaining_trickling_reserves / resolution,
             generator_instance.capacity - generator_instance.dispatch_power[interval],
         )
+        generator_instance.flexible_max_t = max(generator_instance.flexible_max_t, 0.0)
     else:
         generator_instance.flexible_max_t = 0.0
 

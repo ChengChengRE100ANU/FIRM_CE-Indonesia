@@ -6,7 +6,7 @@ import time
 import numpy as np
 from numpy.typing import NDArray
 
-from firm_ce.common.constants import SAVE_POPULATION
+from firm_ce.common.constants import DEFAULT_PV_CAGR_CAP, DEFAULT_PV_FIRST_YEAR_CAP_GW, SAVE_POPULATION
 from firm_ce.common.helpers import safe_divide
 from firm_ce.fast_methods import fleet_m, generator_m, ltcosts_m, network_m, static_m
 from firm_ce.io.file_manager import ResultFile
@@ -45,9 +45,22 @@ class Statistics:
         balancing_type: str,
         fixed_costs_threshold: float,
         copy_callback: bool = True,
+        pv_prev_total: float = 0.0,
+        pv_cagr_cap: float = DEFAULT_PV_CAGR_CAP,
+        pv_first_year_cap_gw: float = DEFAULT_PV_FIRST_YEAR_CAP_GW,
+        expansion_interval_years: int = 1,
     ):
         self.solution = Solution(
-            x_candidate, parameters_static, fleet_static, network_static, balancing_type, fixed_costs_threshold
+            x_candidate,
+            parameters_static,
+            fleet_static,
+            network_static,
+            balancing_type,
+            fixed_costs_threshold,
+            pv_prev_total,
+            pv_cagr_cap,
+            pv_first_year_cap_gw,
+            expansion_interval_years,
         )
         start_time = time.time()
         self.solution.evaluate()

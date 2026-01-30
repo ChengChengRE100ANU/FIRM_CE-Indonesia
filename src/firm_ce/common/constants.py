@@ -4,7 +4,12 @@ import numpy as np
 
 JIT_ENABLED = True
 SAVE_POPULATION = True
-DEBUG = False
+# Enable verbose debug output by setting FIRM_CE_DEBUG=1 in the environment.
+DEBUG = os.getenv("FIRM_CE_DEBUG", "0") == "1"
+# Optional debug filters for dispatch instrumentation.
+DEBUG_INTERVAL = int(os.getenv("FIRM_CE_DEBUG_INTERVAL", "-1"))
+DEBUG_NODE_ORDER = int(os.getenv("FIRM_CE_DEBUG_NODE", "-1"))
+DEBUG_GENERATOR_ORDER = int(os.getenv("FIRM_CE_DEBUG_GENERATOR", "-1"))
 EPSILON_FLOAT64 = np.finfo(np.float64).eps
 NP_FLOAT_MAX = np.finfo(np.float64).max
 NP_FLOAT_MIN = np.finfo(np.float64).min

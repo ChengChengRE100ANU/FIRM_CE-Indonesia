@@ -487,6 +487,32 @@ def validate_storages(storages_dict, scenarios_list, scenario_nodes, scenario_li
     return scenario_storages, flag
 
 
+def _count_scenario_year_items(items_dict, scenario: str, scenario_year: int | None) -> int:
+    count = 0
+    for item in items_dict.values():
+        if scenario not in parse_list(item.get("scenarios")):
+            continue
+        item_year = parse_year(item)
+        if scenario_year is not None and item_year is not None and item_year != scenario_year:
+            continue
+        count += 1
+    return count
+
+
+def _count_scenario_year_major_lines(lines_dict, scenario: str, scenario_year: int | None) -> int:
+    count = 0
+    for item in lines_dict.values():
+        if scenario not in parse_list(item.get("scenarios")):
+            continue
+        item_year = parse_year(item)
+        if scenario_year is not None and item_year is not None and item_year != scenario_year:
+            continue
+        if any(is_nan(item.get(n)) for n in ["node_start", "node_end"]):
+            continue
+        count += 1
+    return count
+
+
 def validate_initial_guess(
     x0s_dict,
     scenarios_list,
@@ -495,6 +521,10 @@ def validate_initial_guess(
     scenario_lines,
     scenario_baseload,
     scenario_minor_lines,
+    scenarios_dict,
+    generators_dict,
+    storages_dict,
+    lines_dict,
     model_logger,
 ):
     flag = True
@@ -517,10 +547,42 @@ def validate_initial_guess(
             + scenario_lines[scenario]
         ) - len(scenario_minor_lines[scenario])
 
-        if x0 and not (len(x0) == bound_length):
-            model_logger.error(
-                "Initial guess 'x_0' for scenario %s contains %d elements, expected %d", scenario, len(x0), bound_length
-            )
+        scenario_year = None
+        for scenario_item in scenarios_dict.values():
+            if scenario_item.get("scenario_name") != scenario:
+                continue
+            try:
+                scenario_year = int(scenario_item.get("firstyear"))
+            except (TypeError, ValueError):
+                scenario_year = None
+            break
+
+        year_bound_length = None
+        if scenario_year is not None:
+            gen_count = _count_scenario_year_items(generators_dict, scenario, scenario_year)
+            storage_count = _count_scenario_year_items(storages_dict, scenario, scenario_year)
+            line_count = _count_scenario_year_major_lines(lines_dict, scenario, scenario_year)
+            year_bound_length = gen_count + (2 * storage_count) + line_count
+
+        if x0 and not (
+            len(x0) == bound_length or (year_bound_length is not None and len(x0) == year_bound_length)
+        ):
+            if year_bound_length is not None:
+                model_logger.error(
+                    "Initial guess 'x_0' for scenario %s contains %d elements, expected %d (all-years) or %d (year %s)",
+                    scenario,
+                    len(x0),
+                    bound_length,
+                    year_bound_length,
+                    scenario_year,
+                )
+            else:
+                model_logger.error(
+                    "Initial guess 'x_0' for scenario %s contains %d elements, expected %d",
+                    scenario,
+                    len(x0),
+                    bound_length,
+                )
             flag = False
 
     for scenario in scenarios_list:
@@ -623,6 +685,10 @@ def validate_config(model_data: ModelData) -> bool:
         scenario_lines,
         scenario_baseload,
         scenario_minor_lines,
+        model_data.scenarios,
+        model_data.generators,
+        model_data.storages,
+        model_data.lines,
         model_logger,
     ):
         model_logger.error("initial_guess.csv contains errors.")

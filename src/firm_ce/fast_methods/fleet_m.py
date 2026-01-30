@@ -694,7 +694,9 @@ def determine_feasible_storage_dispatch(fleet_instance: Fleet_InstanceType, inte
 
 
 @njit(fastmath=FASTMATH)
-def determine_feasible_flexible_dispatch(fleet_instance: Fleet_InstanceType, interval: int64) -> boolean:
+def determine_feasible_flexible_dispatch(
+    fleet_instance: Fleet_InstanceType, interval: int64, static_instance
+) -> boolean:
     """
     Determine whether the flexible Generator dispatch_powers for a time interval calculated during reverse time precharging are
     still feasible when resolving the discontinuity created at the beginning of the precharging period.
@@ -703,6 +705,7 @@ def determine_feasible_flexible_dispatch(fleet_instance: Fleet_InstanceType, int
     -------
     fleet_instance (Fleet_InstanceType): An instance of the Fleet jitclass.
     interval (int64): Index for the time interval.
+    static_instance (ScenarioParameters_InstanceType): Static parameters providing time boundaries.
 
     Returns:
     -------
@@ -719,7 +722,10 @@ def determine_feasible_flexible_dispatch(fleet_instance: Fleet_InstanceType, int
         if not generator_m.check_unit_type(generator, "flexible"):
             continue
         original_dispatch_power = generator.dispatch_power[interval]
-        generator.dispatch_power[interval] = min(original_dispatch_power, generator.flexible_max_t)
+        baseline_power = generator_m.get_baseline_power(generator, interval, static_instance)
+        max_dispatch = min(baseline_power + generator.flexible_max_t, generator.capacity)
+        min_dispatch = baseline_power
+        generator.dispatch_power[interval] = min(max(original_dispatch_power, min_dispatch), max_dispatch)
         dispatch_power_adjustment = original_dispatch_power - generator.dispatch_power[interval]
         if abs(dispatch_power_adjustment) > TOLERANCE:
             generator.node.flexible_power[interval] -= dispatch_power_adjustment
