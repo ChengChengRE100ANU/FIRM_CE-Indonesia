@@ -140,6 +140,10 @@ class Model:
                     self.config.balancing_type,
                     self.config.fixed_costs_threshold,
                     True,
+                    pv_prev_total=pv_prev_total,
+                    pv_cagr_cap=self.config.pv_cagr_cap,
+                    pv_first_year_cap_gw=self.config.pv_first_year_cap_gw,
+                    expansion_interval_years=expansion_interval_years,
                 )
                 scenario.statistics.generate_result_files()
                 scenario.statistics.write_results()
@@ -208,6 +212,8 @@ class Model:
             scenario_name = str(scenario_row.get("scenario_name"))
             if not scenario_name:
                 continue
+
+            fixed_capacity_prev: Dict[str, float] = {}
 
             scenario_root = os.path.join(root_dir, scenario_name)
             work_config_dir = os.path.join(scenario_root, "inputs", "config")
@@ -278,6 +284,8 @@ class Model:
 
                 initial_guess_df = initial_guess_df_base.copy()
                 initial_guess_df = initial_guess_df[initial_guess_df["scenario"] == scenario_name]
+                if start_year != first_year:
+                    initial_guess_df.loc[:, "x_0"] = ""
                 initial_guess_df.to_csv(os.path.join(work_config_dir, "initial_guess.csv"), index=False)
 
                 self._apply_retirements(generator_state, start_year)
@@ -318,6 +326,10 @@ class Model:
                         remaining = max(cap - group_used.get(group, 0.0), 0.0)
                         generators_df.loc[idx, "max_build"] = remaining
 
+                fixed_names = self._apply_fixed_capacity_gw(
+                    generators_df, scenario_name, generator_state, fixed_capacity_prev, start_year
+                )
+
                 fuels_df.to_csv(os.path.join(work_config_dir, "fuels.csv"), index=False)
                 datafiles_df_base.to_csv(os.path.join(work_config_dir, "datafiles.csv"), index=False)
                 generators_df.to_csv(os.path.join(work_config_dir, "generators.csv"), index=False)
@@ -339,6 +351,7 @@ class Model:
                     raise RuntimeError("Statistics not generated for capacity expansion run.")
 
                 gen_builds = {g.name: float(g.new_build) for g in stats.solution.fleet.generators.values()}
+                gen_builds_state = {name: build for name, build in gen_builds.items() if name not in fixed_names}
                 stor_builds_p = {s.name: float(s.new_build_p) for s in stats.solution.fleet.storages.values()}
                 stor_builds_e = {s.name: float(s.new_build_e) for s in stats.solution.fleet.storages.values()}
                 line_builds = {l.name: float(l.new_build) for l in stats.solution.network.major_lines.values()}
@@ -359,7 +372,7 @@ class Model:
                     if scenario_name in parse_comma_separated(row.get("scenarios", ""))
                 }
 
-                self._update_generator_state(generator_state, gen_builds, gen_lifetimes, start_year)
+                self._update_generator_state(generator_state, gen_builds_state, gen_lifetimes, start_year)
                 self._update_storage_state(storage_state, stor_builds_p, stor_builds_e, stor_lifetimes, start_year)
                 self._update_line_state(line_state, line_builds, line_lifetimes, start_year)
                 pv_prev_total = Model._sum_pv_capacity(generator_state)
@@ -580,7 +593,12 @@ class Model:
             vintages = []
             if initial_capacity > 0:
                 vintages.append(
-                    {"build_year": start_year, "capacity": initial_capacity, "lifetime": initial_lifetime}
+                    {
+                        "build_year": start_year,
+                        "capacity": initial_capacity,
+                        "lifetime": initial_lifetime,
+                        "counts_against_max_build": False,
+                    }
                 )
             state[name] = {"max_build": max_build, "vintages": vintages}
         return state
@@ -611,11 +629,21 @@ class Model:
             energy_vintages = []
             if initial_power > 0:
                 power_vintages.append(
-                    {"build_year": start_year, "capacity": initial_power, "lifetime": initial_lifetime}
+                    {
+                        "build_year": start_year,
+                        "capacity": initial_power,
+                        "lifetime": initial_lifetime,
+                        "counts_against_max_build": False,
+                    }
                 )
             if duration <= 0 and initial_energy > 0:
                 energy_vintages.append(
-                    {"build_year": start_year, "capacity": initial_energy, "lifetime": initial_lifetime}
+                    {
+                        "build_year": start_year,
+                        "capacity": initial_energy,
+                        "lifetime": initial_lifetime,
+                        "counts_against_max_build": False,
+                    }
                 )
 
             state[name] = {
@@ -649,7 +677,12 @@ class Model:
             vintages = []
             if initial_capacity > 0:
                 vintages.append(
-                    {"build_year": start_year, "capacity": initial_capacity, "lifetime": initial_lifetime}
+                    {
+                        "build_year": start_year,
+                        "capacity": initial_capacity,
+                        "lifetime": initial_lifetime,
+                        "counts_against_max_build": False,
+                    }
                 )
             state[name] = {"max_build": max_build, "vintages": vintages}
         return state
@@ -657,20 +690,44 @@ class Model:
     @staticmethod
     def _apply_retirements(state: Dict[str, dict], current_year: int) -> None:
         for asset in state.values():
-            asset["vintages"] = [
-                v for v in asset["vintages"] if (current_year - v["build_year"]) < v["lifetime"]
-            ]
+            retired_capacity = 0.0
+            remaining = []
+            for vintage in asset["vintages"]:
+                if (current_year - vintage["build_year"]) < vintage["lifetime"]:
+                    remaining.append(vintage)
+                else:
+                    if vintage.get("counts_against_max_build", True):
+                        retired_capacity += float(vintage.get("capacity", 0.0) or 0.0)
+            asset["vintages"] = remaining
+            if retired_capacity > 0.0:
+                asset["max_build"] = max(0.0, asset.get("max_build", 0.0) + retired_capacity)
 
     @staticmethod
     def _apply_storage_retirements(state: Dict[str, dict], current_year: int) -> None:
         for asset in state.values():
-            asset["power_vintages"] = [
-                v for v in asset["power_vintages"] if (current_year - v["build_year"]) < v["lifetime"]
-            ]
+            retired_power = 0.0
+            remaining_power = []
+            for vintage in asset["power_vintages"]:
+                if (current_year - vintage["build_year"]) < vintage["lifetime"]:
+                    remaining_power.append(vintage)
+                else:
+                    if vintage.get("counts_against_max_build", True):
+                        retired_power += float(vintage.get("capacity", 0.0) or 0.0)
+            asset["power_vintages"] = remaining_power
+            if retired_power > 0.0:
+                asset["max_build_p"] = max(0.0, asset.get("max_build_p", 0.0) + retired_power)
             if asset.get("duration", 0) <= 0:
-                asset["energy_vintages"] = [
-                    v for v in asset["energy_vintages"] if (current_year - v["build_year"]) < v["lifetime"]
-                ]
+                retired_energy = 0.0
+                remaining_energy = []
+                for vintage in asset["energy_vintages"]:
+                    if (current_year - vintage["build_year"]) < vintage["lifetime"]:
+                        remaining_energy.append(vintage)
+                    else:
+                        if vintage.get("counts_against_max_build", True):
+                            retired_energy += float(vintage.get("capacity", 0.0) or 0.0)
+                asset["energy_vintages"] = remaining_energy
+                if retired_energy > 0.0:
+                    asset["max_build_e"] = max(0.0, asset.get("max_build_e", 0.0) + retired_energy)
 
     @staticmethod
     def _sum_vintages(vintages: List[dict]) -> float:
@@ -727,6 +784,70 @@ class Model:
             df.loc[idx, "max_build"] = state[name]["max_build"]
 
     @staticmethod
+    def _apply_fixed_capacity_gw(
+        df: pd.DataFrame,
+        scenario_name: str,
+        state: Dict[str, dict],
+        prev_caps: Dict[str, float],
+        start_year: int,
+    ) -> set:
+        if "fixed_capacity_gw" not in df.columns:
+            return set()
+
+        fixed_names = set()
+        for idx, row in df.iterrows():
+            if scenario_name not in parse_comma_separated(row.get("scenarios", "")):
+                continue
+
+            fixed_val = row.get("fixed_capacity_gw")
+            if fixed_val is None or pd.isna(fixed_val):
+                continue
+
+            try:
+                fixed_cap = float(fixed_val)
+            except (TypeError, ValueError):
+                continue
+            if fixed_cap < 0.0:
+                fixed_cap = 0.0
+
+            name = str(row.get("name"))
+            prev = prev_caps.get(name, fixed_cap)
+            delta = max(fixed_cap - prev, 0.0)
+            if abs(delta) < 1e-9:
+                delta = 0.0
+
+            df.loc[idx, "initial_capacity"] = fixed_cap
+            df.loc[idx, "min_build"] = delta
+            df.loc[idx, "max_build"] = delta
+
+            lifetime = row.get("lifetime", 0)
+            try:
+                lifetime_int = int(float(lifetime))
+            except (TypeError, ValueError):
+                lifetime_int = 0
+
+            if name not in state:
+                state[name] = {"max_build": 0.0, "vintages": []}
+
+            if fixed_cap > 0.0:
+                state[name]["vintages"] = [
+                    {
+                        "build_year": start_year,
+                        "capacity": fixed_cap,
+                        "lifetime": lifetime_int,
+                        "counts_against_max_build": False,
+                    }
+                ]
+            else:
+                state[name]["vintages"] = []
+            state[name]["max_build"] = 0.0
+
+            prev_caps[name] = fixed_cap
+            fixed_names.add(name)
+
+        return fixed_names
+
+    @staticmethod
     def _update_generator_state(
         state: Dict[str, dict], builds: Dict[str, float], lifetimes: Dict[str, int], build_year: int
     ) -> None:
@@ -736,7 +857,14 @@ class Model:
             lifetime = lifetimes.get(name)
             if lifetime is None:
                 continue
-            state[name]["vintages"].append({"build_year": build_year, "capacity": new_build, "lifetime": lifetime})
+            state[name]["vintages"].append(
+                {
+                    "build_year": build_year,
+                    "capacity": new_build,
+                    "lifetime": lifetime,
+                    "counts_against_max_build": True,
+                }
+            )
             state[name]["max_build"] = max(0.0, state[name]["max_build"] - new_build)
 
     @staticmethod
@@ -754,7 +882,12 @@ class Model:
             if lifetime is None:
                 continue
             state[name]["power_vintages"].append(
-                {"build_year": build_year, "capacity": new_build_p, "lifetime": lifetime}
+                {
+                    "build_year": build_year,
+                    "capacity": new_build_p,
+                    "lifetime": lifetime,
+                    "counts_against_max_build": True,
+                }
             )
             state[name]["max_build_p"] = max(0.0, state[name]["max_build_p"] - new_build_p)
 
@@ -767,7 +900,12 @@ class Model:
             if lifetime is None:
                 continue
             state[name]["energy_vintages"].append(
-                {"build_year": build_year, "capacity": new_build_e, "lifetime": lifetime}
+                {
+                    "build_year": build_year,
+                    "capacity": new_build_e,
+                    "lifetime": lifetime,
+                    "counts_against_max_build": True,
+                }
             )
             state[name]["max_build_e"] = max(0.0, state[name]["max_build_e"] - new_build_e)
 
@@ -781,7 +919,14 @@ class Model:
             lifetime = lifetimes.get(name)
             if lifetime is None:
                 continue
-            state[name]["vintages"].append({"build_year": build_year, "capacity": new_build, "lifetime": lifetime})
+            state[name]["vintages"].append(
+                {
+                    "build_year": build_year,
+                    "capacity": new_build,
+                    "lifetime": lifetime,
+                    "counts_against_max_build": True,
+                }
+            )
             state[name]["max_build"] = max(0.0, state[name]["max_build"] - new_build)
 
     @staticmethod
