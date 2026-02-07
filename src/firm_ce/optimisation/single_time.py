@@ -145,6 +145,16 @@ class Solution:
         fleet_m.build_capacities(self.fleet, x, self.static.interval_resolutions)
         network_m.build_capacity(self.network, x)
 
+        # Recompute storage duration for assets that do not have a fixed duration.
+        # Installed capacity includes existing + new build.
+        for storage in self.fleet.storages.values():
+            if storage.duration_fixed:
+                continue
+            if storage.power_capacity > 0:
+                storage.duration = int(storage.energy_capacity / storage.power_capacity)
+            else:
+                storage.duration = 0
+
         # PV growth penalty setup
         self.pv_penalty = 0.0
         self._apply_pv_growth_penalty()

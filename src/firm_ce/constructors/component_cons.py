@@ -179,12 +179,14 @@ def construct_Storage_object(
     name = str(storage_dict["name"])
     power_capacity = float(storage_dict["initial_power_capacity"])
 
-    duration = int(storage_dict["duration"]) if int(storage_dict["duration"]) > 0 else 0
-    if duration == 0:
-        energy_capacity = float(storage_dict["initial_energy_capacity"])
-        duration = int(energy_capacity / power_capacity) if power_capacity > 0 else 0
-    else:
+    duration_input = int(storage_dict["duration"]) if int(storage_dict["duration"]) > 0 else 0
+    duration_fixed = duration_input > 0
+    if duration_fixed:
+        duration = duration_input
         energy_capacity = float(power_capacity * duration)
+    else:
+        duration = 0
+        energy_capacity = float(storage_dict["initial_energy_capacity"])
 
     charge_efficiency = float(storage_dict["charge_efficiency"])
     discharge_efficiency = float(storage_dict["discharge_efficiency"])
@@ -221,6 +223,7 @@ def construct_Storage_object(
         power_capacity,
         energy_capacity,
         duration,
+        duration_fixed,
         charge_efficiency,
         discharge_efficiency,
         max_build_p,

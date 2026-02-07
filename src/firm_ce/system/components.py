@@ -307,6 +307,7 @@ if JIT_ENABLED:
         ("initial_power_capacity", float64),
         ("initial_energy_capacity", float64),
         ("duration", int64),
+        ("duration_fixed", boolean),
         ("charge_efficiency", float64),
         ("discharge_efficiency", float64),
         ("max_build_p", float64),
@@ -372,6 +373,7 @@ class Storage:
     initial_power_capacity (float64): Initial power capacity, units GW.
     initial_energy_capacity (float64): Initial energy capacity, units GWh.
     duration (int64): Storage duration in hours.
+    duration_fixed (boolean): True if duration is fixed from config; otherwise recomputed from installed capacities.
     charge_efficiency (float64): Charging efficiency (fraction).
     discharge_efficiency (float64): Discharging efficiency (fraction).
     max_build_p (float64): Maximum build limit for power capacity, units GW.
@@ -428,6 +430,7 @@ class Storage:
         power_capacity: float64,
         energy_capacity: float64,
         duration: float64,
+        duration_fixed: boolean,
         charge_efficiency: float64,
         discharge_efficiency: float64,
         max_build_p: float64,
@@ -454,6 +457,7 @@ class Storage:
         power_capacity (float64): Initial power capacity, units GW.
         energy_capacity (float64): Initial energy capacity, units GWh.
         duration (int64): Storage duration in hours.
+        duration_fixed (boolean): True if duration is fixed from config; otherwise recomputed from installed capacities.
         charge_efficiency (float64): Charging efficiency (fraction).
         discharge_efficiency (float64): Discharging efficiency (fraction).
         max_build_p (float64): Maximum build limit for power capacity, units GW.
@@ -475,6 +479,7 @@ class Storage:
         self.name = name
         self.initial_power_capacity = power_capacity  # GW
         self.duration = duration  # hours
+        self.duration_fixed = duration_fixed
         self.initial_energy_capacity = energy_capacity if duration == 0 else duration * power_capacity  # GWh
         self.charge_efficiency = charge_efficiency  # %
         self.discharge_efficiency = discharge_efficiency  # %
