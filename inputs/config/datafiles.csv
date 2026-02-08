@@ -29,3 +29,9 @@ id,scenarios,filename,datafile_type
 28,scenario_3b_BO,flexible_annual_limit_2060.csv,flexible_annual_limit
 29,scenario_3b_BO,baseload_2060_3h.csv,generation
 30,scenario_3b_BO,flexible_monthly_limit_2060.csv,flexible_monthly_limit
+31,scenario_3b_BO_2059,electricity_2059_3h.csv,demand
+32,scenario_3b_BO_2059,solar_2059_3h.csv,generation
+33,scenario_3b_BO_2059,wind_2059_3h.csv,generation
+34,scenario_3b_BO_2059,flexible_annual_limit_2059.csv,flexible_annual_limit
+35,scenario_3b_BO_2059,baseload_2059_3h.csv,generation
+36,scenario_3b_BO_2059,flexible_monthly_limit_2059.csv,flexible_monthly_limit

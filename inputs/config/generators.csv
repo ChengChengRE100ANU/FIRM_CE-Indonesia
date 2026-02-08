@@ -4304,3 +4304,91 @@ id,Year,name,fuel,capex,fom,vom,lifetime,initial_capacity_lifetime,discount_rate
 4302,2060,new_h2_apb3,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB3,20,0,0,,fossil_connection,flexible,"default,ce_2025_2060,ce_more_baseload,scenario_3b_BO",TRUE,Flexible,0.4,0.2,25,,
 4303,2060,new_h2_apb4,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB4,20,0,0,,fossil_connection,flexible,"default,ce_2025_2060,ce_more_baseload,scenario_3b_BO",TRUE,Flexible,0.4,0.2,25,,
 4304,2060,new_h2_apb5,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB5,20,0,0,,fossil_connection,flexible,"default,ce_2025_2060,ce_more_baseload,scenario_3b_BO",TRUE,Flexible,0.4,0.2,25,,
+4305,2059,pv_apb1,solar,253,12,0,27,27,0.1,0,0,0.001,APB1,92,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4306,2059,wind_apb1,wind,883,42,0,27,27,0.1,0,0,0.001,APB1,5.501,0,0,,wind_connection,wind,scenario_3b_BO_2059,TRUE,Wind,,,,,
+4307,2059,hydro_apb1,water,1985,45,0.79,50,50,0.1,0,0,0.05,APB1,0.018,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.3,,,
+4308,2059,micro_hydro_apb1,water,2259,50,0.6,50,50,0.1,0,0,0.01,APB1,0,0,0.0553,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.5,,,
+4309,2059,geothermal_apb1,geothermal,4627,116,0.28,30,30,0.1,0,0,0.05,APB1,0.651,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,,,,
+4310,2059,bioenergy_apb1,bioenergy,1783,57,3.58,25,25,0.1,0,11.61,0.05,APB1,0.408,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.3,0.1,,,
+4311,2059,nuclear_apb1,nuclear,5113,116,2.31,30,30,0.1,0,0,0.1,APB1,0,0,0,,other_connections,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4312,2059,gas_ccs_apb1,gas,1801,0.05,0.05,20,20,0.1,0,10.91,0.1,APB1,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,6.814143987
+4313,2059,coal_ccs_cfbio_apb1,black coal,3038,102,4.73,20,20,0.1,0,9.73,0.1,APB1,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,,8.987787438
+4314,2059,nh3_apb1,ammonia,535,0.1,0.1,20,20,0.1,0,9.73,0.1,APB1,8.987787438,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,1,8.987787438
+4315,2059,pv_apb2,solar,253,12,0,27,27,0.1,0,0,0.001,APB2,157,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4316,2059,wind_apb2,wind,883,42,0,27,27,0.1,0,0,0.001,APB2,12.727,0,0,,wind_connection,wind,scenario_3b_BO_2059,TRUE,Wind,,,,,
+4317,2059,hydro_apb2,water,1985,45,0.79,50,50,0.1,0,0,0.05,APB2,0.381,0,2.11538,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.3,,,
+4318,2059,micro_hydro_apb2,water,2259,50,0.6,50,50,0.1,0,0,0.01,APB2,0,0,0.10279,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.5,,,
+4319,2059,geothermal_apb2,geothermal,4627,116,0.28,30,30,0.1,0,0,0.05,APB2,4.763,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,,,,
+4320,2059,bioenergy_apb2,bioenergy,1783,57,3.58,25,25,0.1,0,11.61,0.05,APB2,1.54,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.3,0.1,,,
+4321,2059,nuclear_apb2,nuclear,5113,116,2.31,30,30,0.1,0,0,0.1,APB2,0,0,0,,other_connections,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4322,2059,gas_ccs_apb2,gas,1801,0.05,0.05,20,20,0.1,0,10.91,0.1,APB2,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,5.998556079
+4323,2059,coal_ccs_cfbio_apb2,black coal,3038,102,4.73,20,20,0.1,0,9.73,0.1,APB2,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,,3.663570115
+4324,2059,nh3_apb2,ammonia,535,0.1,0.1,20,20,0.1,0,9.73,0.1,APB2,3.663570115,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,2,3.663570115
+4325,2059,pv_apb3,solar,253,12,0,27,27,0.1,0,0,0.001,APB3,207,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4326,2059,wind_apb3,wind,883,42,0,27,27,0.1,0,0,0.001,APB3,10.618,0,0,,wind_connection,wind,scenario_3b_BO_2059,TRUE,Wind,,,,,
+4327,2059,hydro_apb3,water,1985,45,0.79,50,50,0.1,0,0,0.05,APB3,0.134,0,0.31666,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.3,,,
+4328,2059,micro_hydro_apb3,water,2259,50,0.6,50,50,0.1,0,0,0.01,APB3,0,0,0.04283,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.5,,,
+4329,2059,geothermal_apb3,geothermal,4627,116,0.28,30,30,0.1,0,0,0.05,APB3,1.352,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,,,,
+4330,2059,bioenergy_apb3,bioenergy,1783,57,3.58,25,25,0.1,0,11.61,0.05,APB3,2.12,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.3,0.1,,,
+4331,2059,nuclear_apb3,nuclear,5113,116,2.31,30,30,0.1,0,0,0.1,APB3,0,0,0,,other_connections,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4332,2059,gas_ccs_apb3,gas,1801,0.05,0.05,20,20,0.1,0,10.91,0.1,APB3,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,2.158545589
+4333,2059,coal_ccs_cfbio_apb3,black coal,3038,102,4.73,20,20,0.1,0,9.73,0.1,APB3,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,,10.64907681
+4334,2059,nh3_apb3,ammonia,535,0.1,0.1,20,20,0.1,0,9.73,0.1,APB3,10.64907681,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,3,10.64907681
+4335,2059,pv_apb4,solar,253,12,0,27,27,0.1,0,0,0.001,APB4,177,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4336,2059,wind_apb4,wind,883,42,0,27,27,0.1,0,0,0.001,APB4,10.204,0,0,,wind_connection,wind,scenario_3b_BO_2059,TRUE,Wind,,,,,
+4337,2059,hydro_apb4,water,1985,45,0.79,50,50,0.1,0,0,0.05,APB4,0.082,0,0.28771,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.3,,,
+4338,2059,micro_hydro_apb4,water,2259,50,0.6,50,50,0.1,0,0,0.01,APB4,0,0,0.01143,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.5,,,
+4339,2059,geothermal_apb4,geothermal,4627,116,0.28,30,30,0.1,0,0,0.05,APB4,1.284,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,,,,
+4340,2059,bioenergy_apb4,bioenergy,1783,57,3.58,25,25,0.1,0,11.61,0.05,APB4,3.054,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.3,0.1,,,
+4341,2059,nuclear_apb4,nuclear,5113,116,2.31,30,30,0.1,0,0,0.1,APB4,0,0,0,,other_connections,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4342,2059,gas_ccs_apb4,gas,1801,0.05,0.05,20,20,0.1,0,10.91,0.1,APB4,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,3.418462431
+4343,2059,coal_ccs_cfbio_apb4,black coal,3038,102,4.73,20,20,0.1,0,9.73,0.1,APB4,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,,6.750259047
+4344,2059,nh3_apb4,ammonia,535,0.1,0.1,20,20,0.1,0,9.73,0.1,APB4,6.750259047,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,4,6.750259047
+4345,2059,pv_apb5,solar,253,12,0,27,27,0.1,0,0,0.001,APB5,22,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4346,2059,wind_apb5,wind,883,42,0,27,27,0.1,0,0,0.001,APB5,1.554,0,0,,wind_connection,wind,scenario_3b_BO_2059,TRUE,Wind,,,,,
+4347,2059,hydro_apb5,water,1985,45,0.79,50,50,0.1,0,0,0.05,APB5,0.005,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.3,,,
+4348,2059,micro_hydro_apb5,water,2259,50,0.6,50,50,0.1,0,0,0.01,APB5,0,0,0.00267,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,0.5,,,
+4349,2059,geothermal_apb5,geothermal,4627,116,0.28,30,30,0.1,0,0,0.05,APB5,0.335,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,,,,,
+4350,2059,bioenergy_apb5,bioenergy,1783,57,3.58,25,25,0.1,0,11.61,0.05,APB5,0.078,0,0,,other_connections,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.3,0.1,,,
+4351,2059,nuclear_apb5,nuclear,5113,116,2.31,30,30,0.1,0,0,0.1,APB5,0,0,0,,other_connections,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4352,2059,gas_ccs_apb5,gas,1801,0.05,0.05,20,20,0.1,0,10.91,0.1,APB5,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,0.954731914
+4353,2059,coal_ccs_cfbio_apb5,black coal,3038,102,4.73,20,20,0.1,0,9.73,0.1,APB5,0,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,,0.406706586
+4354,2059,nh3_apb5,ammonia,535,0.1,0.1,20,20,0.1,0,9.73,0.1,APB5,0.406706586,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.04,57,5,0.406706586
+4355,2059,sumatera_import_2060,import,0,0,0,0,0,0.1,0,85.41,0.1,Sumatera,0,0,7.3,,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4356,2059,kalimantan_import_2060,import,0,0,0,0,0,0.1,0,96.77,0.1,Kalimantan,0,0,26,,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4357,2059,lombok_import_2060,import,0,0,0,0,0,0.1,0,63.07,0.1,Lombok,0,0,16.5,,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,,,,,,
+4358,2059,gas_h2_apb1,H2,488,28,2.73,20,20,0.1,0,10.91,0.1,APB1,6.814143987,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,6,6.814143987
+4359,2059,gas_h2_apb2,H2,488,28,2.73,20,20,0.1,0,10.91,0.1,APB2,5.998556079,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,7,5.998556079
+4360,2059,gas_h2_apb3,H2,488,28,2.73,20,20,0.1,0,10.91,0.1,APB3,2.158545589,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,8,2.158545589
+4361,2059,gas_h2_apb4,H2,488,28,2.73,20,20,0.1,0,10.91,0.1,APB4,3.418462431,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,9,3.418462431
+4362,2059,gas_h2_apb5,H2,488,28,2.73,20,20,0.1,0,10.91,0.1,APB5,0.954731914,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,10,0.954731914
+4363,2059,pv_floating_apb1,solar,333,12,0,25,25,0.1,0,0,0.001,APB1,17.9,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4364,2059,pv_rooftop_apb1,solar,0,12,0,25,25,0.1,0,0,0.001,APB1,52,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4365,2059,pv_floating_apb2,solar,333,12,0,25,25,0.1,0,0,0.001,APB2,67,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4366,2059,pv_rooftop_apb2,solar,0,12,0,25,25,0.1,0,0,0.001,APB2,12.2,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4367,2059,pv_floating_apb3,solar,333,12,0,25,25,0.1,0,0,0.001,APB3,21.6,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4368,2059,pv_rooftop_apb3,solar,0,12,0,25,25,0.1,0,0,0.001,APB3,111.9,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4369,2059,pv_floating_apb4,solar,333,12,0,25,25,0.1,0,0,0.001,APB4,61.4,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4370,2059,pv_rooftop_apb4,solar,0,12,0,25,25,0.1,0,0,0.001,APB4,117.2,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4371,2059,pv_floating_apb5,solar,333,12,0,25,25,0.1,0,0,0.001,APB5,1.175,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4372,2059,pv_rooftop_apb5,solar,0,12,0,25,25,0.1,0,0,0.001,APB5,10.9,0,0,,pv_connection,solar,scenario_3b_BO_2059,TRUE,PV,,,,,
+4373,2059,gas_ccgt_apb1,gas,978.885,28.18,2.73,25,25,0.1,0,6.43,0.1,APB1,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ccgt_apb1,0.45,0.2,90,,
+4374,2059,gas_ccgt_apb2,gas,978.885,28.18,2.73,25,25,0.1,0,6.43,0.1,APB2,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ccgt_apb2,0.45,0.2,90,,
+4375,2059,gas_ccgt_apb3,gas,978.885,28.18,2.73,25,25,0.1,0,6.43,0.1,APB3,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ccgt_apb3,0.45,0.2,90,,
+4376,2059,gas_ccgt_apb4,gas,978.885,28.18,2.73,25,25,0.1,0,6.43,0.1,APB4,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ccgt_apb4,0.45,0.2,90,,
+4377,2059,gas_ccgt_apb5,gas,978.885,28.18,2.73,25,25,0.1,0,6.43,0.1,APB5,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ccgt_apb5,0.45,0.2,90,,
+4378,2059,gas_ocgt_apb1,gas,1023.355,27.87,3.79,25,25,0.1,0,10.91,0.1,APB1,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ocgt_apb1,0.4,0.2,25,,
+4379,2059,gas_ocgt_apb2,gas,1023.355,27.87,3.79,25,25,0.1,0,10.91,0.1,APB2,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ocgt_apb2,0.4,0.2,25,,
+4380,2059,gas_ocgt_apb3,gas,1023.355,27.87,3.79,25,25,0.1,0,10.91,0.1,APB3,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ocgt_apb3,0.4,0.2,25,,
+4381,2059,gas_ocgt_apb4,gas,1023.355,27.87,3.79,25,25,0.1,0,10.91,0.1,APB4,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ocgt_apb4,0.4,0.2,25,,
+4382,2059,gas_ocgt_apb5,gas,1023.355,27.87,3.79,25,25,0.1,0,10.91,0.1,APB5,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,gas_ocgt_apb5,0.4,0.2,25,,
+4383,2059,coal_apb1,black coal,1554.196,49.43,1.47,30,30,0.1,0,9.73,0.1,APB1,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,coal_apb1,0.4,0.04,57,,
+4384,2059,coal_apb2,black coal,1554.196,49.43,1.47,30,30,0.1,0,9.73,0.1,APB2,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,coal_apb2,0.4,0.04,57,,
+4385,2059,coal_apb3,black coal,1554.196,49.43,1.47,30,30,0.1,0,9.73,0.1,APB3,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,coal_apb3,0.4,0.04,57,,
+4386,2059,coal_apb4,black coal,1554.196,49.43,1.47,30,30,0.1,0,9.73,0.1,APB4,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,coal_apb4,0.4,0.04,57,,
+4387,2059,coal_apb5,black coal,1554.196,49.43,1.47,30,30,0.1,0,9.73,0.1,APB5,0,0,0,0,fossil_connection,flexible,scenario_3b_BO_2059,FALSE,coal_apb5,0.4,0.04,57,,
+4388,2059,new_h2_apb1,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB1,20,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,
+4389,2059,new_h2_apb2,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB2,20,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,
+4390,2059,new_h2_apb3,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB3,20,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,
+4391,2059,new_h2_apb4,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB4,20,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,
+4392,2059,new_h2_apb5,H2,1254,28,2.73,25,25,0.1,0,10.91,0.1,APB5,20,0,0,,fossil_connection,flexible,scenario_3b_BO_2059,TRUE,Flexible,0.4,0.2,25,,
