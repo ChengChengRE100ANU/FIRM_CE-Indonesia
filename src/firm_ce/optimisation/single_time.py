@@ -401,7 +401,11 @@ class Solution:
 
         if pv_excess_gw > 0.1 or fixed_cost_violation > 0.0:
             pv_penalty = self.pv_penalty if pv_excess_gw > 0.1 else 0.0
-            return fixed_cost_intensity, self.penalties + pv_penalty  # End early if PV or fixed cost constraint breached
+            fixed_cost_penalty = fixed_cost_violation * PENALTY_MULTIPLIER
+            return (
+                fixed_cost_intensity,
+                self.penalties + pv_penalty + fixed_cost_penalty,
+            )  # End early if PV or fixed cost constraint breached
 
         reliability_check = self.balance_residual_load()
         if not reliability_check:
