@@ -391,9 +391,21 @@ class Solution:
         else:
             fixed_cost_intensity = NP_FLOAT_MAX
 
+        pv_excess_gw = 0.0
+        if self.pv_penalty > 0:
+            pv_excess_gw = self.pv_penalty / PENALTY_MULTIPLIER
+
+        fixed_cost_violation = 0.0
+        if fixed_cost_intensity > self.fixed_costs_threshold:
+            fixed_cost_violation = fixed_cost_intensity - self.fixed_costs_threshold
+
+        if fixed_cost_violation > 1.0 or pv_excess_gw > 1.0:
+            early_return_penalty = (fixed_cost_violation + pv_excess_gw) * 1e9
+            return 0.0, self.penalties + early_return_penalty
+
         reliability_check = self.balance_residual_load()
         if not reliability_check:
-            return fixed_cost_intensity, self.penalties + self.pv_penalty  # End early if reliability constraint breached
+            return 0.0, self.penalties + fixed_cost_intensity  # End early if reliability constraint breached
 
         total_costs += self.calculate_variable_costs()
 
@@ -401,7 +413,7 @@ class Solution:
 
         lcoe = total_costs / np.abs(sum(self.static.year_energy_demand) - total_line_losses) / 1000  # $/MWh
 
-        return lcoe, self.penalties + self.pv_penalty + fixed_cost_intensity
+        return lcoe, self.penalties + fixed_cost_intensity
 
     def evaluate(self):
         """
