@@ -405,7 +405,7 @@ class Solution:
 
         reliability_check = self.balance_residual_load()
         if not reliability_check:
-            return 0.0, self.penalties + fixed_cost_intensity  # End early if reliability constraint breached
+            return 0.0, self.penalties  # End early if reliability constraint breached
 
         total_costs += self.calculate_variable_costs()
 
@@ -413,7 +413,7 @@ class Solution:
 
         lcoe = total_costs / np.abs(sum(self.static.year_energy_demand) - total_line_losses) / 1000  # $/MWh
 
-        return lcoe, self.penalties + fixed_cost_intensity
+        return lcoe, self.penalties
 
     def evaluate(self):
         """
