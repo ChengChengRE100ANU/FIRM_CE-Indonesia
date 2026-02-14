@@ -70,6 +70,12 @@ def get_present_value(discount_rate: float64, lifetime: float64) -> float64:
     -------
     float64: Net present value factor.
     """
+    if lifetime <= 0:
+        # Treat non-positive lifetimes as a single-year factor to avoid divide-by-zero downstream.
+        return 1.0
+    if discount_rate <= 0:
+        # Limit as discount_rate -> 0 of the NPV factor is the lifetime.
+        return lifetime
     return (1 - (1 + discount_rate) ** (-1 * lifetime)) / discount_rate
 
 

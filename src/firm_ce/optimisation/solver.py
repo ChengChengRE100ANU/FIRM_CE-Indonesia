@@ -50,6 +50,10 @@ class Solver:
         self.optimal_lcoe = None
         self.initial_population = initial_population
         self.iterations = config.iterations
+        self.near_optimum_local_fraction = 0.9
+        self.near_optimum_local_center_scale = 0.10
+        self.near_optimum_local_span_scale = 0.001
+        self.diversify_record_anchor_multiplier = 5
 
     def get_bounds(self) -> NDArray[np.float64]:
         def power_capacity_bounds(
@@ -120,7 +124,173 @@ class Solver:
         )
         return args
 
-    def run_differential_evolution(self, objective_function: Callable, args: Tuple) -> OptimizeResult:
+    def _population_size(self) -> int:
+        free_dimensions = int(np.sum(np.abs(self.upper_bounds - self.lower_bounds) > 1e-12))
+        return max(5, self.config.population * max(free_dimensions, 1))
+
+    def build_hybrid_initial_population(
+        self, center_x: NDArray[np.float64], local_fraction: float | None = None
+    ) -> NDArray[np.float64]:
+        if center_x is None:
+            raise ValueError("center_x is required to build hybrid initial population.")
+
+        center_x = np.asarray(center_x, dtype=np.float64).reshape(-1)
+        if center_x.size != self.lower_bounds.size:
+            raise ValueError(
+                f"center_x length {center_x.size} does not match decision variable count {self.lower_bounds.size}."
+            )
+
+        population_size = self._population_size()
+        local_fraction = self.near_optimum_local_fraction if local_fraction is None else local_fraction
+        local_fraction = max(0.0, min(1.0, local_fraction))
+
+        local_count = int(round(population_size * local_fraction))
+        local_count = min(max(local_count, 1), population_size)
+        global_count = population_size - local_count
+        local_random_count = max(local_count - 1, 0)
+
+        span = self.upper_bounds - self.lower_bounds
+        local_step = np.maximum(
+            self.near_optimum_local_center_scale * np.maximum(np.abs(center_x), 1e-3),
+            self.near_optimum_local_span_scale * span,
+        )
+
+        local_population = np.empty((0, center_x.size), dtype=np.float64)
+        if local_random_count > 0:
+            local_population = center_x + np.random.normal(
+                0.0, 1.0, size=(local_random_count, center_x.size)
+            ) * local_step
+
+        global_population = np.empty((0, center_x.size), dtype=np.float64)
+        if global_count > 0:
+            global_population = self.lower_bounds + np.random.random((global_count, center_x.size)) * span
+
+        init_population = np.vstack((center_x.reshape(1, -1), local_population, global_population))
+
+        if init_population.shape[0] > population_size:
+            init_population = init_population[:population_size]
+        elif init_population.shape[0] < population_size:
+            missing = population_size - init_population.shape[0]
+            pad = self.lower_bounds + np.random.random((missing, center_x.size)) * span
+            init_population = np.vstack((init_population, pad))
+
+        init_population = np.clip(init_population, self.lower_bounds, self.upper_bounds)
+        fixed_mask = np.abs(span) <= 1e-12
+        if np.any(fixed_mask):
+            init_population[:, fixed_mask] = self.lower_bounds[fixed_mask]
+
+        init_population[0, :] = np.clip(center_x, self.lower_bounds, self.upper_bounds)
+        if np.any(fixed_mask):
+            init_population[0, fixed_mask] = self.lower_bounds[fixed_mask]
+
+        return init_population
+
+    def _deduplicate_anchor_points(self, anchor_points: List[NDArray[np.float64]]) -> NDArray[np.float64]:
+        unique_points = []
+        seen = set()
+        for anchor in anchor_points:
+            anchor_arr = np.asarray(anchor, dtype=np.float64).reshape(-1)
+            if anchor_arr.size != self.lower_bounds.size:
+                continue
+            anchor_arr = np.clip(anchor_arr, self.lower_bounds, self.upper_bounds)
+            key = tuple(np.round(anchor_arr, decimals=9))
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_points.append(anchor_arr)
+
+        if not unique_points:
+            raise ValueError("No valid anchor points were provided for initial population.")
+        return np.vstack(unique_points)
+
+    def build_multi_anchor_hybrid_population(
+        self,
+        anchor_points: List[NDArray[np.float64]],
+        local_fraction: float | None = None,
+    ) -> NDArray[np.float64]:
+        anchors = self._deduplicate_anchor_points(anchor_points)
+        dimension_count = anchors.shape[1]
+
+        population_size = self._population_size()
+        local_fraction = self.near_optimum_local_fraction if local_fraction is None else local_fraction
+        local_fraction = max(0.0, min(1.0, local_fraction))
+
+        local_count = int(round(population_size * local_fraction))
+        local_count = min(max(local_count, 1), population_size)
+        global_count = population_size - local_count
+
+        seed_count = min(local_count, anchors.shape[0])
+        local_random_count = max(local_count - seed_count, 0)
+
+        seeded_population = anchors[:seed_count]
+
+        span = self.upper_bounds - self.lower_bounds
+        local_population = np.empty((0, dimension_count), dtype=np.float64)
+        if local_random_count > 0:
+            sampled_anchor_idx = np.random.randint(0, anchors.shape[0], size=local_random_count)
+            sampled_centers = anchors[sampled_anchor_idx]
+            local_step = np.maximum(
+                self.near_optimum_local_center_scale * np.maximum(np.abs(sampled_centers), 1e-3),
+                self.near_optimum_local_span_scale * span,
+            )
+            local_population = sampled_centers + np.random.normal(
+                0.0, 1.0, size=(local_random_count, dimension_count)
+            ) * local_step
+
+        global_population = np.empty((0, dimension_count), dtype=np.float64)
+        if global_count > 0:
+            global_population = self.lower_bounds + np.random.random((global_count, dimension_count)) * span
+
+        init_population = np.vstack((seeded_population, local_population, global_population))
+        if init_population.shape[0] > population_size:
+            init_population = init_population[:population_size]
+        elif init_population.shape[0] < population_size:
+            missing = population_size - init_population.shape[0]
+            pad = self.lower_bounds + np.random.random((missing, dimension_count)) * span
+            init_population = np.vstack((init_population, pad))
+
+        init_population = np.clip(init_population, self.lower_bounds, self.upper_bounds)
+        fixed_mask = np.abs(span) <= 1e-12
+        if np.any(fixed_mask):
+            init_population[:, fixed_mask] = self.lower_bounds[fixed_mask]
+
+        init_population[0, :] = np.clip(anchors[0], self.lower_bounds, self.upper_bounds)
+        if np.any(fixed_mask):
+            init_population[0, fixed_mask] = self.lower_bounds[fixed_mask]
+
+        return init_population
+
+    def collect_diversify_anchor_points(self, optimal_x: NDArray[np.float64]) -> List[NDArray[np.float64]]:
+        anchor_points: List[NDArray[np.float64]] = [np.asarray(optimal_x, dtype=np.float64).reshape(-1)]
+
+        if getattr(self, "near_optimal_bands", None):
+            for candidate_x_min, candidate_x_max in self.near_optimal_bands.values():
+                anchor_points.append(np.asarray(candidate_x_min, dtype=np.float64).reshape(-1))
+                anchor_points.append(np.asarray(candidate_x_max, dtype=np.float64).reshape(-1))
+
+        if getattr(self, "near_optimal_records", None):
+            records = self.near_optimal_records
+            max_record_anchors = max(
+                1,
+                self.diversify_record_anchor_multiplier * self._population_size(),
+            )
+            if len(records) > max_record_anchors:
+                sampled_indices = np.linspace(0, len(records) - 1, max_record_anchors, dtype=np.int64)
+            else:
+                sampled_indices = np.arange(len(records), dtype=np.int64)
+
+            for idx in sampled_indices:
+                anchor_points.append(np.asarray(records[int(idx)][6], dtype=np.float64).reshape(-1))
+
+        return anchor_points
+
+    def run_differential_evolution(
+        self,
+        objective_function: Callable,
+        args: Tuple,
+        init_override: Union[NDArray[np.float64], str, None] = None,
+    ) -> OptimizeResult:
+        init_population = self.initial_population if init_override is None else init_override
         result = differential_evolution(
             x0=self.decision_x0,
             func=objective_function,
@@ -129,7 +299,7 @@ class Solver:
             tol=0,
             maxiter=self.iterations,
             popsize=self.config.population,
-            init=self.initial_population,
+            init=init_population,
             mutation=(0.2, self.config.mutation),
             recombination=self.config.recombination,
             disp=True,
@@ -203,10 +373,17 @@ class Solver:
             loaded = self.load_optimal_x()
             if loaded is not None:
                 self.decision_x0 = loaded
+        if self.decision_x0 is None:
+            raise ValueError("Near-optimum search requires a valid reference optimum x vector.")
         band_lcoe_max = self.get_band_lcoe_max()
         evaluation_records = []
         bands = {}
         groups = create_groups_dict(self.broad_optimum_var_info)
+
+        self.logger.info(
+            "[near_optimum] using hybrid initialisation around reference optimum "
+            f"(local_fraction={self.near_optimum_local_fraction:.2f})."
+        )
 
         for group_key, idx_list in groups.items():
             self.logger.info(f"[near_optimum] exploring group '{group_key}'")
@@ -229,7 +406,12 @@ class Solver:
                     band_type,
                 )
 
-                result = self.run_differential_evolution(broad_optimum_objective, args)
+                hybrid_init = self.build_hybrid_initial_population(self.decision_x0)
+                result = self.run_differential_evolution(
+                    broad_optimum_objective,
+                    args,
+                    init_override=hybrid_init,
+                )
 
                 bands_record.append(result.x.copy())
 
@@ -284,7 +466,20 @@ class Solver:
             k_neighbors,
         )
 
-        self.run_differential_evolution(diversify_objective, args)
+        init_override = None
+        try:
+            anchor_points = self.collect_diversify_anchor_points(optimal_x)
+            init_override = self.build_multi_anchor_hybrid_population(anchor_points)
+            self.logger.info(
+                "[diversify] using multi-anchor hybrid initialisation "
+                f"(anchors={len(anchor_points)}, local_fraction={self.near_optimum_local_fraction:.2f})."
+            )
+        except Exception as exc:
+            self.logger.warning(
+                f"[diversify] failed to build multi-anchor init ({exc}). Falling back to default initialisation."
+            )
+
+        self.run_differential_evolution(diversify_objective, args, init_override=init_override)
         write_diversify_records(self.scenario_name, self.broad_optimum_var_info, diversify_records)
 
     def capacity_expansion(self):
